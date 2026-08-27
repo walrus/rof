@@ -78,26 +78,32 @@ class Card:
     def __eq__(self, value):
         return self.index == value.index
 
-""" Draw N random cards from a standard 52-card deck """
-def draw(num: int) -> list[Card]:
-    if num > 51:
+""" Draw N random cards from a standard 52-card deck, keeping some"""
+def draw(num: int, keep: int) -> list[Card]:
+    if num > 51 or keep > num:
         return []
     
     indices = sample(range(0, 52), num)
-    return [Card(index) for index in indices]
+    cards = [Card(index) for index in indices]
 
-""" Sum the best N cards from the given set """
-def sumBest(cards: list[Card], n: int) -> int:
-    if n > len(cards):
-        raise ValueError("Asked for too many cards!")
-    elif n == len(cards):
-        return sum(card.value() for card in cards)
+    if (num == keep):
+        return cards
 
     cards.sort(reverse=True)
-    return sum(card.value() for card in islice(cards, n))
+    return cards[:keep]
+
+""" Sum the values of the given cards"""
+def sumCards(cards: list[Card]) -> int:
+    return sum(card.value() for card in cards)
 
 """ Number of cards in the set which are at or above the given threshold 
     E.G how many Jacks or higher?
 """ 
 def numAboveThreshold(cards: list[Card], threshold: Card) -> int:
     return sum(1 for card in cards if card >= threshold)
+
+def allAces(cards: list[Card]) -> bool:
+    return all(card.rank() == Rank.Ace for card in cards)
+
+def allFaceCards(cards: list[Card]) -> bool:
+    return all (card.rank() >= Rank.Jack for card in cards)
