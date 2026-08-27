@@ -1,5 +1,6 @@
 from enum import Enum
 from source.cards import Card
+from source import constants
 
 """ Represents individual units on the tabletop """
 
@@ -21,6 +22,8 @@ class Unit:
         self.commander = commander
         self.unitType = unitType
         self.nickname = nickname
+        self.armour = 0
+        self.steadiness = constants.DEFAULT_STEADINESS
 
     def name(self) -> str:
         if self.nickname:
@@ -53,8 +56,8 @@ class InfantryUnit(Unit):
     pike: int # How many pikemen are in the unit
     shot: int # How many musketeers are in the unit
 
-    def __init__(self, commander, unitType, pike, shot, nickname=""):
-        super().__init__(commander, unitType, nickname)
+    def __init__(self, commander, pike, shot, nickname=""):
+        super().__init__(commander, UnitType.Infantry, nickname)
         self.pike = pike
         self.shot = shot
 

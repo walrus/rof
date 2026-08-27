@@ -1,6 +1,6 @@
-from units import Unit
-from cards import draw, sumCards, numAboveThreshold, allAces, allFaceCards
-import constants
+from source.units import Unit
+from source.cards import draw, sumCards, numAboveThreshold, allAces, allFaceCards
+from source import constants
 """ For calculating what happens to one or more Units when they perform one or more Actions """
 
 """ Describes the change in state of a Unit after an Action """
@@ -15,6 +15,9 @@ class Outcome:
         self.disorder = disorder
         self.panic = panic
         self.event = event
+
+    def anyChange(self) -> bool:
+        return self.casualties > 0 or self.disorder != 0 or self.panic or self.event
 
 """ Monte Carlo simulate red shooting at blue
     For now, ignores cover etc """

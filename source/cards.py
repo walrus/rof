@@ -41,6 +41,31 @@ Values = {
     11: 10, # Queen
     12: 10, # King
 }
+
+# For printing card short names E.G 5♠
+suitSymbols = {
+    Suit.Clubs:    "♣",
+    Suit.Diamonds: "♦",
+    Suit.Hearts:   "♥",
+    Suit.Spades:   "♠"
+}
+
+rankLetters = {
+    Rank.Ace:   "A",
+    Rank.Two:   "2",
+    Rank.Three: "3",
+    Rank.Four:  "4",
+    Rank.Five:  "5",
+    Rank.Six :  "6",
+    Rank.Seven: "7",
+    Rank.Eight: "8",
+    Rank.Nine:  "9",
+    Rank.Ten:   "10",
+    Rank.Jack:  "J",
+    Rank.Queen: "Q",
+    Rank.King:  "K"
+}
+
 class Card:
     index: int
 
@@ -52,6 +77,9 @@ class Card:
         return cls((rank * 4) + suit)
 
     def __str__(self):
+        return f"{rankLetters[self.rank()]}{suitSymbols[self.suit()]}"
+
+    def fullName(self):
         return f"The {self.rank().name} of {self.suit().name}"
 
     def suit(self) -> Suit:
@@ -64,19 +92,19 @@ class Card:
         return Values[self.index // 4]
 
     def __gt__(self, other):
-        return self.index > other.index
+        return self.index > other
 
     def __ge__(self, other):
-        return self.index >= other.index
+        return self.index >= other
 
     def __lt__(self, other):
-        return self.index < other.index
+        return self.index < other
 
     def __le__(self, other):
-            return self.index <= other.index
+        return self.index <= other
         
     def __eq__(self, value):
-        return self.index == value.index
+        return self.index == value
 
 """ Draw N random cards from a standard 52-card deck, keeping some"""
 def draw(num: int, keep: int) -> list[Card]:
@@ -86,11 +114,22 @@ def draw(num: int, keep: int) -> list[Card]:
     indices = sample(range(0, 52), num)
     cards = [Card(index) for index in indices]
 
+    print("Draw: ")
+    for c in cards:
+        print(f"    {c}")
+    
+
     if (num == keep):
         return cards
 
     cards.sort(reverse=True)
-    return cards[:keep]
+    kc = cards[:keep]
+
+    print("Keep: ")
+    for c in kc:
+        print(f"    {c}")
+    
+    return kc
 
 """ Sum the values of the given cards"""
 def sumCards(cards: list[Card]) -> int:

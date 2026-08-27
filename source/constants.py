@@ -7,3 +7,6 @@ BEST_OF = 3
 # How many Disorder you need to accumulate in one action to Panic
 # 3 is nice because then it's possible, albeit unlikely, in normal shooting
 PANIC_THRESHOLD = 3
+
+# What's a good default steadiness? Jack?
+DEFAULT_STEADINESS = 10
