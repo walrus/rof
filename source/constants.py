@@ -10,3 +10,5 @@ PANIC_THRESHOLD = 3
 
 # What's a good default steadiness? Jack?
 DEFAULT_STEADINESS = 10
+
+#TODO: make some card constants

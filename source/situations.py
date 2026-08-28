@@ -1,23 +1,7 @@
-from source.units import Unit
-from source.cards import draw, sumCards, numAboveThreshold, allAces, allFaceCards
+from source.units import Unit, Outcome
+from source.cards import draw, sumCards, numAboveThreshold, allAces, allFaceCards, numAces
 from source import constants
 """ For calculating what happens to one or more Units when they perform one or more Actions """
-
-""" Describes the change in state of a Unit after an Action """
-class Outcome:
-    casualties: int
-    disorder: int
-    panic: bool
-    event: bool # TODO: work out how to encode the events table
-
-    def __init__(self, casualties, disorder, panic, event) -> None:
-        self.casualties = casualties
-        self.disorder = disorder
-        self.panic = panic
-        self.event = event
-
-    def anyChange(self) -> bool:
-        return self.casualties > 0 or self.disorder != 0 or self.panic or self.event
 
 """ Monte Carlo simulate red shooting at blue
     For now, ignores cover etc """
@@ -26,12 +10,14 @@ def shootAt(red: Unit, blue: Unit, distance: int) -> tuple[Outcome, Outcome]:
     cards = draw(red.firepower(), constants.BEST_OF)
 
     casualties = sumCards(cards) // target
-    disorder = numAboveThreshold(cards, blue.steadiness)
-    panic = disorder >= constants.PANIC_THRESHOLD
-    redEvent = allAces(cards)
+    blueDisorder = numAboveThreshold(cards, blue.steadiness)
+    panic = blueDisorder >= constants.PANIC_THRESHOLD
     blueEvent = allFaceCards(cards)
 
-    redOutcome = Outcome(0, 0, False, redEvent)
-    blueOutcome = Outcome(casualties, disorder, panic, blueEvent)
+    redDisorder = numAces(cards)
+    redEvent = allAces(cards)
+
+    redOutcome = Outcome(0, redDisorder, False, redEvent)
+    blueOutcome = Outcome(casualties, blueDisorder, panic, blueEvent)
 
     return (redOutcome, blueOutcome)

@@ -1,5 +1,5 @@
 from enum import IntEnum
-from random import sample
+from random import sample, randint
 from itertools import islice
 
 """ Utilities for card distribution """
@@ -106,30 +106,20 @@ class Card:
     def __eq__(self, value):
         return self.index == value
 
+def drawSingle() -> Card:
+    return Card(randint(0, 51))
+
 """ Draw N random cards from a standard 52-card deck, keeping some"""
 def draw(num: int, keep: int) -> list[Card]:
-    if num > 51 or keep > num:
-        return []
-    
     indices = sample(range(0, 52), num)
     cards = [Card(index) for index in indices]
 
-    print("Draw: ")
-    for c in cards:
-        print(f"    {c}")
-    
-
-    if (num == keep):
+    if (num >= keep):
         return cards
 
     cards.sort(reverse=True)
-    kc = cards[:keep]
+    return cards[:keep]
 
-    print("Keep: ")
-    for c in kc:
-        print(f"    {c}")
-    
-    return kc
 
 """ Sum the values of the given cards"""
 def sumCards(cards: list[Card]) -> int:
@@ -144,5 +134,8 @@ def numAboveThreshold(cards: list[Card], threshold: Card) -> int:
 def allAces(cards: list[Card]) -> bool:
     return all(card.rank() == Rank.Ace for card in cards)
 
+def numAces(cards: list[Card]) -> int:
+    return sum(1 for card in cards if card.rank() == Rank.Ace)
+
 def allFaceCards(cards: list[Card]) -> bool:
-    return all (card.rank() >= Rank.Jack for card in cards)
+    return all(card.rank() >= Rank.Jack for card in cards)
