@@ -3,7 +3,7 @@
 from source.cards import draw, sumCards, Card, numAboveThreshold, Rank, Suit
 
 def monteCarloDraw():
-    # Monte carlo simulate 10,000,000 draws
+    # Monte carlo simulate a bunch of card draws
 
     sums = {}
     for i in range(3,31):
@@ -36,3 +36,79 @@ def monteCarloDraw():
     for value, count in thresholds.items():
         print(f"{str(value)}, {count}")
 
+def testPanicOptions():
+    """ Test 2-card draw vs one card plus Steadiness """
+    disorder = {}
+    steadiness = 7
+
+    ace = Card.fromRankAndSuit(Rank.Two, Suit.Clubs)
+    king = Card.fromRankAndSuit(Rank.King, Suit.Clubs)
+        
+    print("Computing...")
+    for i in range(0,21):
+        disorder[i] = 0
+
+        for j in range(1000000):
+            cards = draw(2, 2)
+            sum = sumCards(cards)
+
+            # Double aces always fail; double kings always succeed
+            if numAboveThreshold(cards, ace) == 0:
+                continue
+
+            if sum >= i or numAboveThreshold(cards, king) == 2:
+                disorder[i] = disorder[i] + 1
+
+    print("### RESULTS ###")
+    print("Sums: ")
+    for value, count in disorder.items():
+        print(f"{str(value)}, {count / 1000000}")
+
+def simpleFirefight():
+    red = InfantryUnit("Red", 12, 24)
+    red.setSteadiness(Card.fromRankAndSuit(Rank.Jack, Suit.Clubs))
+    blue = InfantryUnit("Blue", 12, 24)
+    blue.setSteadiness(Card.fromRankAndSuit(Rank.Jack, Suit.Clubs))
+
+    turnsOfShooting = 0
+
+    while red.fitToFight() and blue.fitToFight():
+        # randomise the order each turn
+        redCard, blueCard = draw(2,2)
+
+        turnsOfShooting = turnsOfShooting + 1
+
+        if redCard > blueCard:
+            print("Red shoots at Blue from 8 inches away")
+            redOutcome, blueOutcome = shootAt(red, blue, 8)
+
+            red.applyOutcome(redOutcome)
+            blue.applyOutcome(blueOutcome)
+            print(f"Blue strength now {blue.pike} pike and {blue.shot} shot; disorder {blue.disorder}")
+            if not blue.fitToFight():
+                break
+            print("Blue returns fire from 8 inches away")
+            blueOutcome, redOutcome = shootAt(blue, red, 8)
+
+            red.applyOutcome(redOutcome)
+            blue.applyOutcome(blueOutcome)
+            print(f"Red strength now {red.pike} pike and {red.shot} shot; disorder {red.disorder}")
+        else:
+            print(" Blue shoots at Red from 8 inches away")
+            blueOutcome, redOutcome = shootAt(blue, red, 8)
+            red.applyOutcome(redOutcome)
+            blue.applyOutcome(blueOutcome)
+
+            if not red.fitToFight():
+                break
+            print("Red returns fire from 8 inches away")
+            redOutcome, blueOutcome = shootAt(red, blue, 8)
+            red.applyOutcome(redOutcome)
+            blue.applyOutcome(blueOutcome)
+        print()
+
+    winner = "Red" if red.fitToFight() else "Blue"
+    print(f"Exchange of fire ended after {turnsOfShooting} rounds. Winner {winner}")
+
+    print(f"Red strength now {red.pike} pike and {red.shot} shot; disorder {red.disorder}")
+    print(f"Blue strength now {blue.pike} pike and {blue.shot} shot; disorder {blue.disorder}")
