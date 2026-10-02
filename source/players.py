@@ -1,4 +1,4 @@
-from source.cards import Card, draw, highestCombination
+from source.cards import Card, draw, highestCombination, combinations
 from source.units import Unit, Order, basicOrders
 from source import constants
 
@@ -36,6 +36,7 @@ class Player:
         return self.hand.pop()
 
     def orderOptions(self) -> list[Order]:
+        """ Get all possible Orders, ruling out any that no combination of cards in hand can play"""
         highestCardCombo = highestCombination(self.hand)
 
         return [order for order in basicOrders if order.isPossible(highestCardCombo, self.unit)]
@@ -44,4 +45,5 @@ class Player:
         """ Pick an order to give """
         #TODO take account of cards used
         #TODO actually pick orders sensibly!
-        return =choice(self.orderOptions())
+        cardCombos = combinations(self.hand)
+        return choice(self.orderOptions())

@@ -7,7 +7,7 @@ from source.units import Unit
 class Game:
     players = list[Player]
 
-    def __init__(self, players: list[Player]):
+    def __init__(self, players):
         self.players = players
         #TODO: more setup?
 

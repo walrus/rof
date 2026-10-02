@@ -141,7 +141,8 @@ def allFaceCards(cards: list[Card]) -> bool:
     return all(card.rank() >= Rank.Jack for card in cards)
 
 def highestCombination(cards: list[Card]) -> int:
-    """ Cards of the same suit can be combined by summing their values """
+    """ Quickly calculate the highest-valued combination of cards in a hand.
+    Cards of the same suit can be combined by summing their values """
     highest = 0
     while cards:
         firstCard = cards.pop()
@@ -153,3 +154,24 @@ def highestCombination(cards: list[Card]) -> int:
         if combination > highest:
             highest = combination
     return highest
+
+def combinations(cards: list[Card]) -> list[tuple[int, list[Card]]]:
+    """ Return all the possible combinations of the given set of cards,
+        combining only cards of the same suit, E.G
+         J♥, 9♥, 5♣, 10♠
+        Returns [(19, [J♥, 9♥]), (10, [J♥]), (10, [10♠]), (9, [9♥]), (5, [5♣])]
+    """
+    combinations = []
+    while cards:
+        first = cards.pop()
+        combinations.append((first.value(), [first]))
+        cardsThisSuit = [first]
+        for card in cards:
+            if card.suit() == first.suit():
+                cardsThisSuit.append(card)
+                combinedValue = sum(card.value() for card in cardsThisSuit)
+                combinations.append((combinedValue, cardsThisSuit.copy()))
+
+    combinations.sort(reverse=True)
+    return combinations
+
