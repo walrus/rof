@@ -36,6 +36,27 @@ def monteCarloDraw():
     for value, count in thresholds.items():
         print(f"{str(value)}, {count}")
 
+def monteCarloHighestSum():
+    """ Useful for working out what Orders a hand can give you"""
+    combinations = {}
+    for i in range(1,51):
+        combinations[i] = 0
+
+    for i in range(10000000):
+        # I think default hand size is probably 4
+        cards = draw(5, 5)
+        highest = highestCombination(cards)
+        
+        combinations[highest] = combinations[highest] + 1
+
+        if (i % 10000 == 0):
+            print(f"Done {str(i)}")
+
+    print("### RESULTS ###")
+    print("Highest Combinations: ")
+    for value, count in combinations.items():
+        print(f"{str(value)}, {count}")
+
 def testPanicOptions():
     """ Test 2-card draw vs one card plus Steadiness """
     disorder = {}

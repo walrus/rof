@@ -139,3 +139,17 @@ def numAces(cards: list[Card]) -> int:
 
 def allFaceCards(cards: list[Card]) -> bool:
     return all(card.rank() >= Rank.Jack for card in cards)
+
+def highestCombination(cards: list[Card]) -> int:
+    """ Cards of the same suit can be combined by summing their values """
+    highest = 0
+    while cards:
+        firstCard = cards.pop()
+        combination = firstCard.value()
+        for card in cards:
+            if card.suit() == firstCard.suit():
+                # Ideally we'd pop any matching cards here to save iterating but eh
+                combination = combination + card.value()
+        if combination > highest:
+            highest = combination
+    return highest
