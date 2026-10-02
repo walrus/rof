@@ -42,6 +42,9 @@ class Unit:
     armour: int
     panic: PanicState
     disorder: int
+    shooting: bool # Is this unit currently shooting
+    fighting: bool # Is this unit currently fighting
+    # Note also that all units must implement movementSpeed
 
     def __init__(self, commander, unitType, nickname=""):
         self.commander = commander
@@ -50,6 +53,8 @@ class Unit:
         self.armour = 0
         self.panic = PanicState.OK
         self.disorder = 0
+        self.shooting = False
+        self.fighting = False
         #self.steadiness = constants.DEFAULT_STEADINESS
 
     def name(self) -> str:
@@ -90,6 +95,7 @@ class Unit:
         # TODO: unattached officer
         panicCard = drawSingle()
 
+        #TODO: new style panic test
         # Panic test passed!
         if panicCard >= self.steadiness:
             return True
@@ -112,6 +118,9 @@ class Unit:
             return self.panicTest()
         return True
 
+    def isOK(self) -> bool:
+        return self.panic == PanicState.OK
+
     def wavering(self) -> bool:
         return self.panic == PanicState.Wavering
 
@@ -120,15 +129,23 @@ class Unit:
 
     def fitToFight(self):
         return self.strength() > 0 and not self.panicked()
-    
+
+class InfantryMovementSpeed(Enum):
+    Halt = 0
+    Walk = 1
+    Run = 2
+
 class InfantryUnit(Unit):
     pike: int # How many pikemen are in the unit
     shot: int # How many musketeers are in the unit
+    movementSpeed: InfantryMovementSpeed
 
     def __init__(self, commander, pike, shot, nickname=""):
         super().__init__(commander, UnitType.Infantry, nickname)
         self.pike = pike
         self.shot = shot
+        self.unitType = UnitType.Infantry
+        self.movementSpeed = InfantryMovementSpeed.Halt
 
     def ferocity(self) -> int:
         return self.pike // 4
@@ -166,3 +183,28 @@ class InfantryUnit(Unit):
             self.shot = self.shot - shotCasualties
         else:
             self.shot = 0
+
+class CavalryMovementSpeed(Enum):
+    Halt = 0
+    Walk = 1
+    Trot = 2
+    Gallop = 3
+
+class CavalryUnit(Unit):
+    movementSpeed: CavalryMovementSpeed
+    horse: int # Number of horsemen in the unit
+
+    def __init__(self, commander, horse, nickname=""):
+        super().__init__(commander, UnitType.Infantry, nickname)
+        self.horse = horse
+        self.unitType = UnitType.Infantry
+        self.movementSpeed = CavalryMovementSpeed.Halt
+
+    def ferocity(self) -> int:
+        return self.horse // 2
+
+    def firepower(self) -> int:
+        return self.horse // 4
+
+    def strength(self) -> int:
+        return self.horse
