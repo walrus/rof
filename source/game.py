@@ -1,6 +1,5 @@
 from source.players import Player
 from source.units import Unit
-
 """ Wrap the various objects up into a game """
 
 

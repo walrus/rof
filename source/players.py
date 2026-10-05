@@ -1,6 +1,6 @@
 from source.cards import Card, draw, highestCombination, combinations
 from source.units import Unit, Order, basicOrders
-from source import constants
+from source.jev import chooseActivationCard
 
 from source.commission import Colonel
 
@@ -38,9 +38,10 @@ class Player:
             self.hand.pop()
 
     def chooseActivationCard(self) -> Card:
-        """ Pick and spend an activation card """
-        #TODO this more optimally
-        return self.hand.pop()
+        """ Pick and spend an activation card, using Jev to choose """
+        cardChoice = chooseActivationCard(self.hand)
+        self.hand.remove(cardChoice)
+        return cardChoice
 
     def orderOptions(self) -> list[Order]:
         """ Get all possible Orders, ruling out any that no combination of cards in hand can play"""
