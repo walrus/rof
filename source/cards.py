@@ -49,13 +49,20 @@ suitSymbols = {
     Suit.Spades:   "♠"
 }
 
+fromSuitSymbols = {
+    "♣": Suit.Clubs,
+    "♦": Suit.Diamonds,
+    "♥": Suit.Hearts,
+    "♠": Suit.Spades
+}
+
 rankLetters = {
     Rank.Ace:   "A",
     Rank.Two:   "2",
     Rank.Three: "3",
     Rank.Four:  "4",
     Rank.Five:  "5",
-    Rank.Six :  "6",
+    Rank.Six:   "6",
     Rank.Seven: "7",
     Rank.Eight: "8",
     Rank.Nine:  "9",
@@ -63,6 +70,22 @@ rankLetters = {
     Rank.Jack:  "J",
     Rank.Queen: "Q",
     Rank.King:  "K"
+}
+
+fromRankLetters = {
+    "A": Rank.Ace,
+    "2": Rank.Two,
+    "3": Rank.Three,
+    "4": Rank.Four,
+    "5": Rank.Five,
+    "6":Rank.Six,
+    "7":Rank.Seven,
+    "8":Rank.Eight,
+    "9":Rank.Nine,
+    "10":Rank.Ten,
+    "J":Rank.Jack,
+    "Q":Rank.Queen,
+    "K": Rank.King,
 }
 
 class Card:
@@ -73,6 +96,20 @@ class Card:
 
     @classmethod
     def fromRankAndSuit(cls, rank: Rank, suit: Suit):
+        return cls((rank * 4) + suit)
+
+    @classmethod
+    def fromShortString(cls, string):
+        if len(string) > 3:
+            return None
+        if len(string) == 3:
+            if string[:2] != "10":
+                return None
+            rank = Rank.Ten
+            suit = fromSuitSymbols[string[2]]
+        else:
+            rank = fromRankLetters[string[0]]
+            suit = fromSuitSymbols[string[1]]
         return cls((rank * 4) + suit)
 
     def __str__(self):
