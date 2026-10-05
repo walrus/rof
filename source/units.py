@@ -1,7 +1,8 @@
 from enum import Enum
 from math import ceil, sqrt
-from source.cards import Card, draw, sumCards, allAces, allKings
+
 from source import constants
+from source.cards import Card, allAces, allKings, draw, sumCards
 
 """ Represents individual units on the tabletop """
 
@@ -248,9 +249,9 @@ class Order:
     description: str
     baseDifficulty: int    # All orders have a base difficulty; 
     addsDisorder: bool     # Some are modified by the Unit's Disorder
-    #prerequisite: function # Some have special prerequisites; specified by a function which takes a Unit
-    # target: Unit TODO: figure out how type hints work for nullable fields
-    #direction: tuple[int, int]
+    prerequisite: function | None # Some have special prerequisites; specified by a function which takes a Unit
+    target: Unit | None
+    direction: tuple[int, int] | None
 
     def __init__(self, name, description, baseDifficulty, addsDisorder = False, prerequisite = None):
         self.name = name

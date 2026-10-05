@@ -1,9 +1,9 @@
 """ Commission of Array: a pre-game Colonel generator for Regiment of Foote """
 
-from source.cards import Card, draw, Rank, drawSingle
+from enum import Enum, IntEnum
 from random import randint, sample, shuffle
 
-from enum import Enum, IntEnum
+from source.cards import Card, Rank, draw, drawSingle
 
 forenames = {
     "salts": # Salts of the Earth 

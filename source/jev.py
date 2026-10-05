@@ -1,7 +1,8 @@
 """ Calls Jev to make simulated player decisions """
+from typesafe_sdk import Choice, TypeSafeClient
+
 from source.cards import Card
 
-from typesafe_sdk import Choice, Noul, Score, TypeSafeClient
 
 def chooseActivationCard(cards : list[Card]) -> Card:
     """ Ask Jev to choose a card from hand to use for activation"""

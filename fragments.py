@@ -1,6 +1,15 @@
 """ Just misc bits from the scratchpad that I didn't want to delete"""
 
-from source.cards import draw, sumCards, Card, numAboveThreshold, Rank, Suit, combinations
+from source.cards import (
+    Card,
+    Rank,
+    Suit,
+    combinations,
+    draw,
+    numAboveThreshold,
+    sumCards,
+)
+
 
 def monteCarloDraw():
     # Monte carlo simulate a bunch of card draws
@@ -68,7 +77,6 @@ def showCombinations():
     for val, cardList in combos:
         cardStr = ' '.join([str(card) for card in cardList])
         print(f"Val: {str(val)}, cards: {cardStr}")
-
 
 def testPanicOptions():
     """ Test 2-card draw vs one card plus Steadiness """

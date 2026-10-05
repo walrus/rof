@@ -11,4 +11,7 @@ PANIC_THRESHOLD = 3
 # What's a good default steadiness? Jack?
 DEFAULT_STEADINESS = 10
 
-#TODO: make some card constants
+# Ranges are determined by the max sum of 3 cards (30); cannon double this and pistols halve it
+PISTOL_RANGE = 15
+MUSKET_RANGE = 30
+CANNON_RANGE = 60

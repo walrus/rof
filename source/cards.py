@@ -1,5 +1,5 @@
 from enum import IntEnum
-from random import sample, randint
+from random import randint, sample
 
 """ Utilities for card distribution """
 
@@ -147,7 +147,7 @@ def drawSingle() -> Card:
 
 """ Draw N random cards from a standard 52-card deck, keeping some"""
 def draw(num: int, keep: int, highest=True) -> list[Card]:
-    indices = sample(range(0, 52), num)
+    indices = sample(range(52), num)
     cards = [Card(index) for index in indices]
 
     if (num <= keep):
@@ -190,8 +190,7 @@ def highestCombination(cards: list[Card]) -> int:
             if card.suit() == firstCard.suit():
                 # Ideally we'd pop any matching cards here to save iterating but eh
                 combination = combination + card.value()
-        if combination > highest:
-            highest = combination
+        highest = max(highest, combination)
     return highest
 
 def combinations(cards: list[Card]) -> list[tuple[int, list[Card]]]:

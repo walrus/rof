@@ -1,13 +1,12 @@
-from source.cards import Card, draw, highestCombination, combinations
-from source.units import Unit, Order, basicOrders
-from source.jev import chooseActivationCard
-
-from source.commission import Colonel
+"""Represents the actual people playing the game"""
 
 from random import choice
-from typing import Optional
 
-"""Represents the actual people playing the game"""
+from source.cards import Card, draw, highestCombination
+from source.commission import Colonel
+from source.jev import chooseActivationCard
+from source.units import Order, Unit, basicOrders
+
 
 class Player:
     name: str
@@ -33,7 +32,7 @@ class Player:
             return
 
         # Otherwise got to get rid of some
-        #TODO: do this somewhat more optimally!
+        #TODO: do this somewhat more optimally via Jev!
         while len(self.hand) > self.grip:
             self.hand.pop()
 
@@ -49,10 +48,10 @@ class Player:
         print(f"Highest combo: {highestCardCombo}")
         return [order for order in basicOrders if order.isPossible(highestCardCombo, self.unit)]
 
-    def chooseOrder(self) -> Optional[Order]:
+    def chooseOrder(self) -> Order | None:
         """ Pick an order to give """
         #TODO take account of cards used & actually pick orders sensibly!
-        cardCombos = combinations(self.hand)
+        # cardCombos = combinations(self.hand)
         options = self.orderOptions()
 
         if not options:
