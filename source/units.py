@@ -95,8 +95,10 @@ class Unit:
         """ Attempt to carry out the given order"""
         if not order:
             # Carry on as you were
-            self.carryOut(self.currentOrder)
-            pass
+            if self.currentOrder:
+                return self.carryOut(self.currentOrder)
+            else:
+                return Outcome(0, 0, False, None)
         #TODO actually do the thing. Guess I need to encode something within the Order that says what actually happens?
         # Or maybe the Unit needs to encode it?
         return Outcome(0, 0, False, None)
@@ -221,7 +223,7 @@ class CavalryUnit(Unit):
     horse: int # Number of horsemen in the unit
 
     def __init__(self, commander, horse, nickname=""):
-        super().__init__(commander, UnitType.Infantry, nickname)
+        super().__init__(commander, UnitType.Cavalry, nickname)
         self.horse = horse
         self.unitType = UnitType.Infantry
         self.movementSpeed = CavalryMovementSpeed.Halt

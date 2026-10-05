@@ -28,7 +28,7 @@ class Game:
             
             print(f"Activation: {player.name} with a {str(card)}")
             order = player.chooseOrder()
-            print(f"Order: {player.unit.name()} is ordered to {order.name}")
+            print(f"Order: {player.unit.name()} is ordered to {order.name if order else "do nothing"}")
             player.unit.carryOut(order)
 
         # Panic phase

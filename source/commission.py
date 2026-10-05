@@ -152,7 +152,6 @@ class Colonel:
     def applyTraits(self, traits: list[Trait]) -> None:
         """ Apply the effects of the given traits and store them for later"""
         for trait in traits:
-            print(trait.name)
             match trait:
                 case Trait.Sharp:
                     self.grip = self.grip + 1
@@ -208,7 +207,6 @@ class Colonel:
 
     def applyPositions(self, positions: list[Position]) -> None:
         for pos in positions:
-            print(pos.name)
             match pos:
                 case Position.Merchant:
                     self.wealth = self.wealth + drawSingle().value()

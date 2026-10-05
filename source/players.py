@@ -2,21 +2,28 @@ from source.cards import Card, draw, highestCombination, combinations
 from source.units import Unit, Order, basicOrders
 from source import constants
 
-from random import choice
+from source.commission import Colonel
 
-"""Represents the actual people playing the game, and their in-game Colonel"""
+from random import choice
+from typing import Optional
+
+"""Represents the actual people playing the game"""
 
 class Player:
     name: str
-    grip: int # Hand size
     unit: Unit
+    colonel: Colonel
     hand: list[Card]
 
-    def __init__(self, name, grip, unit):
+    def __init__(self, name, colonel, unit):
         self.name = name
-        self.grip = grip
+        self.colonel = colonel
         self.unit = unit
-        self.hand = draw(grip, grip)
+        self.hand = draw(colonel.grip, colonel.grip)
+
+    @property
+    def grip(self):
+        return self.colonel.grip
 
     def drawStep(self) -> None:
         self.hand.extend(draw(2,2))
@@ -38,12 +45,17 @@ class Player:
     def orderOptions(self) -> list[Order]:
         """ Get all possible Orders, ruling out any that no combination of cards in hand can play"""
         highestCardCombo = highestCombination(self.hand)
-
+        print(f"Highest combo: {highestCardCombo}")
         return [order for order in basicOrders if order.isPossible(highestCardCombo, self.unit)]
 
-    def chooseOrder(self):
+    def chooseOrder(self) -> Optional[Order]:
         """ Pick an order to give """
-        #TODO take account of cards used
-        #TODO actually pick orders sensibly!
+        #TODO take account of cards used & actually pick orders sensibly!
         cardCombos = combinations(self.hand)
+        options = self.orderOptions()
+
+        if not options:
+            print("No options available!")
+            return None
+
         return choice(self.orderOptions())
