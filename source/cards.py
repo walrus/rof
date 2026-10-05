@@ -114,7 +114,7 @@ def draw(num: int, keep: int, highest=True) -> list[Card]:
     indices = sample(range(0, 52), num)
     cards = [Card(index) for index in indices]
 
-    if (num >= keep):
+    if (num <= keep):
         return cards
 
     cards.sort(reverse=highest)
