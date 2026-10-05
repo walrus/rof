@@ -1,6 +1,6 @@
 from enum import Enum
-from math import ceil
-from source.cards import Card, draw, drawSingle
+from math import ceil, sqrt
+from source.cards import Card, draw, sumCards, allAces, allKings
 from source import constants
 
 """ Represents individual units on the tabletop """
@@ -22,7 +22,7 @@ class Outcome:
     casualties: int
     disorder: int
     panic: bool
-    event: bool # TODO: work out how to encode the events table
+    event: bool # TODO: Events table once the core game is running OK
 
     def __init__(self, casualties, disorder, panic, event) -> None:
         self.casualties = casualties
@@ -44,7 +44,9 @@ class Unit:
     disorder: int
     shooting: bool # Is this unit currently shooting
     fighting: bool # Is this unit currently fighting
+    position: tuple[int, int] # xy; height is ignored for now
     # Note also that all units must implement movementSpeed
+    # currentOrder: Order 
 
     def __init__(self, commander, unitType, nickname=""):
         self.commander = commander
@@ -55,6 +57,8 @@ class Unit:
         self.disorder = 0
         self.shooting = False
         self.fighting = False
+        self.position = (0, 0)
+        self.currentOrder = None
         #self.steadiness = constants.DEFAULT_STEADINESS
 
     def name(self) -> str:
@@ -87,13 +91,14 @@ class Unit:
     def takeCasualties(self, num: int) -> None:
         pass
 
-    def activate(self, order: Order):# -> Outcome:
+    def carryOut(self, order: Order):# -> Outcome:
         """ Attempt to carry out the given order"""
         if not order:
             # Carry on as you were
-            #TODO I think I need to store a last given order or something?
+            self.carryOut(self.currentOrder)
             pass
         #TODO actually do the thing. Guess I need to encode something within the Order that says what actually happens?
+        # Or maybe the Unit needs to encode it?
         return Outcome(0, 0, False, None)
 
     def panicTest(self) -> bool:
@@ -101,19 +106,20 @@ class Unit:
         if self.panic == PanicState.Panicked:
             return False
         
-        # TODO: unattached officer
-        panicCard = drawSingle()
+        if self.commander:
+            panicCards = draw(2, 2)
+        else:
+            panicCards = draw(3, 2, False)
 
-        #TODO: new style panic test
-        # Panic test passed!
-        if panicCard >= self.steadiness:
+        # Panic test always passed on two Kings, and always failed on two Aces
+        if allKings(panicCards):
+            return True
+        elif not allAces(panicCards) and sumCards(panicCards) >= self.steadiness:
             return True
 
         if self.panic == PanicState.Wavering:
-            print(f"{self.name()} is PANICKED")
             self.panic = PanicState.Panicked
         else:
-            print(f"{self.name()} is WAVERING!")
             self.panic = PanicState.Wavering
 
         return False
@@ -123,7 +129,6 @@ class Unit:
         self.takeCasualties(outcome.casualties)
 
         if (outcome.panic):
-            print("### panic test!")
             return self.panicTest()
         return True
 
@@ -138,6 +143,15 @@ class Unit:
 
     def fitToFight(self):
         return self.strength() > 0 and not self.panicked()
+
+    def distanceTo(self, target: Unit) -> int:
+        """ Cartesian distance to target, rounded up to the nearest inch"""
+        xDist = target.position[0] - self.position[0]
+        yDist = target.position[1] - self.position[1]
+        return ceil(sqrt((xDist * xDist) + (yDist * yDist)))
+
+    def inRange(self, target: Unit) -> bool:
+        return False
 
 class InfantryMovementSpeed(Enum):
     Halt = 0
@@ -164,6 +178,9 @@ class InfantryUnit(Unit):
 
     def strength(self) -> int:
         return self.pike + self.shot
+
+    def inRange(self, target: Unit) -> bool:
+        return self.distanceTo(target) <= constants.MUSKET_RANGE
 
     def takeCasualties(self, num: int) -> None:
         if num == 0:
@@ -218,16 +235,20 @@ class CavalryUnit(Unit):
     def strength(self) -> int:
         return self.horse
 
+    def inRange(self, target: Unit) -> bool:
+        return self.distanceTo(target) <= constants.PISTOL_RANGE
 
-#TODO: how best to represent E.G move direction or shooting target?
 
 class Order:
-    """ Represents an order a Player might give to a Unit"""
+    """ Represents an order a Player might give to a Unit 
+        Tightly coupled because most Orders have a prerequisite which depends on a Unit"""
     name: str
     description: str
     baseDifficulty: int    # All orders have a base difficulty; 
     addsDisorder: bool     # Some are modified by the Unit's Disorder
     #prerequisite: function # Some have special prerequisites; specified by a function which takes a Unit
+    # target: Unit TODO: figure out how type hints work for nullable fields
+    #direction: tuple[int, int]
 
     def __init__(self, name, description, baseDifficulty, addsDisorder = False, prerequisite = None):
         self.name = name
@@ -235,6 +256,8 @@ class Order:
         self.baseDifficulty = baseDifficulty
         self.addsDisorder = addsDisorder
         self.prerequisite = prerequisite
+        self.target = None
+        self.direction = None
 
     def currentDifficulty(self, unit: Unit) -> int:
         return self.baseDifficulty + unit.disorder if self.addsDisorder else self.baseDifficulty
@@ -243,6 +266,12 @@ class Order:
         difficulty = self.currentDifficulty(unit)
         meetsPrerequisite = not self.prerequisite or self.prerequisite(unit) 
         return highestCardCombo >= difficulty and meetsPrerequisite
+
+    def setTarget(self, target: Unit) -> None:
+        self.target = target
+
+    def setDirection(self, direction: tuple[int,int]) -> None:
+        self.direction = direction
 
 # Common orders that most units can carry out
 # description, base difficulty, adds disorder, prerequisite

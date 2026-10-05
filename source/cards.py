@@ -110,16 +110,15 @@ def drawSingle() -> Card:
     return Card(randint(0, 51))
 
 """ Draw N random cards from a standard 52-card deck, keeping some"""
-def draw(num: int, keep: int) -> list[Card]:
+def draw(num: int, keep: int, highest=True) -> list[Card]:
     indices = sample(range(0, 52), num)
     cards = [Card(index) for index in indices]
 
     if (num >= keep):
         return cards
 
-    cards.sort(reverse=True)
+    cards.sort(reverse=highest)
     return cards[:keep]
-
 
 """ Sum the values of the given cards"""
 def sumCards(cards: list[Card]) -> int:
@@ -133,6 +132,9 @@ def numAboveThreshold(cards: list[Card], threshold: Card) -> int:
 
 def allAces(cards: list[Card]) -> bool:
     return all(card.rank() == Rank.Ace for card in cards)
+
+def allKings(cards: list[Card]) -> bool:
+    return all(card.rank() == Rank.King for card in cards)
 
 def numAces(cards: list[Card]) -> int:
     return sum(1 for card in cards if card.rank() == Rank.Ace)
