@@ -29,7 +29,7 @@ class Game:
             print(f"Activation: {player.name} with a {str(card)}")
             order = player.chooseOrder()
             print(f"Order: {player.unit.name()} is ordered to {order.name}")
-            player.unit.activate(order)
+            player.unit.carryOut(order)
 
         # Panic phase
         #TODO: figure out how I'm checking for panic here

@@ -1,6 +1,5 @@
 from enum import IntEnum
 from random import sample, randint
-from itertools import islice
 
 """ Utilities for card distribution """
 
