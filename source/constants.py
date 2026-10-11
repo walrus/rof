@@ -17,6 +17,8 @@ PISTOL_RANGE = 15
 MUSKET_RANGE = 30
 CANNON_RANGE = 60
 
+# Minimum distance for the purposes of calculating shooting casualties 
+MIN_SHOOTING_DISTANCE = 8
 
 class Faction(Enum):
     Royalist = 0

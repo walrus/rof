@@ -2,8 +2,25 @@ from collections.abc import Callable
 from enum import Enum
 from math import ceil, sqrt
 
-from source.cards import Card, Rank, Suit, allAces, allKings, draw, sumCards
-from source.constants import MUSKET_RANGE, PISTOL_RANGE, Faction
+from source.cards import (
+    Card,
+    Rank,
+    Suit,
+    allAces,
+    allKings,
+    draw,
+    numAboveThreshold,
+    numAces,
+    sumCards,
+)
+from source.constants import (
+    BEST_OF,
+    MIN_SHOOTING_DISTANCE,
+    MUSKET_RANGE,
+    PANIC_THRESHOLD,
+    PISTOL_RANGE,
+    Faction,
+)
 
 """ Represents individual units on the tabletop """
 
@@ -51,6 +68,7 @@ class Unit:
     # Note also that all units must implement movementSpeed
     currentOrder: Order | None  # noqa: F821
     currentMovementSpeed: MovementSpeed
+    shootingDistanceMultiplier: int # TODO: make a proper constant
 
     def __init__(self, commander, unitType, faction, nickname=""):
         self.commander = commander
@@ -152,7 +170,24 @@ class Unit:
         pass
 
     def shootAt(self, target: "Unit") -> None:
-        pass
+        distance = max(MIN_SHOOTING_DISTANCE, (self.distanceTo(target) * self.shootingDistanceMultiplier))
+        cards = draw(self.firepower(), BEST_OF)
+    
+        casualties = sumCards(cards) // distance
+        enemyDisorder = casualties + numAboveThreshold(cards, target.steadiness)
+        enemyPanic = enemyDisorder >= PANIC_THRESHOLD
+
+        print(f"{target.name()} takes {casualties} casualties and {enemyDisorder} disorder")
+        target.takeCasualties(casualties)
+        target.disorder = target.disorder + enemyDisorder
+        if enemyPanic:
+            target.panicTest() # We don't need to know if they panicked
+        
+        self.disorder = self.disorder + numAces(cards)
+
+        #TODO shooting events
+        #enemyEvent = allFaceCards(cards)
+        #friendlyEvent = allAces(cards)
 
     def ceaseFire(self) -> None:
         self.shooting = False
@@ -204,6 +239,7 @@ class Unit:
     def isEnemy(self, faction: Faction) -> bool:
         return faction != self.faction
 
+
 class InfantryUnit(Unit):
     pike: int # How many pikemen are in the unit
     shot: int # How many musketeers are in the unit
@@ -213,6 +249,7 @@ class InfantryUnit(Unit):
         self.pike = pike
         self.shot = shot
         self.unitType = UnitType.Infantry
+        self.shootingDistanceMultiplier = 1
 
     def ferocity(self) -> int:
         return self.pike // 4
@@ -253,6 +290,7 @@ class InfantryUnit(Unit):
             self.shot = self.shot - shotCasualties
         else:
             self.shot = 0
+    
 
 class CavalryUnit(Unit):
     horse: int # Number of horsemen in the unit
@@ -261,6 +299,7 @@ class CavalryUnit(Unit):
         super().__init__(commander, UnitType.Cavalry, faction, nickname)
         self.horse = horse
         self.unitType = UnitType.Cavalry
+        self.shootingDistanceMultiplier = 2
 
     def ferocity(self) -> int:
         return self.horse // 2
@@ -314,14 +353,14 @@ class Order:
 basicOrders = [
     Order("Halt", "Stop what you're doing", 5, True, lambda u: u.currentMovementSpeed.value > 0 and u.currentMovementSpeed != MovementSpeed.Gallop),
     Order("Walk", "Move slowly forwards", 5, True, None),
-    Order("Run", "Move quickly forwards", 5, True, lambda u: isinstance(u, InfantryUnit)),
+    Order("Run", "Move quickly forwards", 5, True, lambda u: u.unitType == UnitType.Infantry),
     Order("Reform", "Move slowly into a new formation", 5, True, None),
     Order("Flee", "Run away!", 5, False, None),
     Order("Rally", "Stop running away!", 0, False, lambda u: not u.isOK()),
     Order("Encourage", "Make the troops feel better", 0, False, lambda u: u.disorder > 0),
     Order("Charge", "Move quickly towards the enemy", 5, True, lambda u: u.isOK()),
-    Order("Trot", "Cavalry move fairly quickly forwards", 5, True, lambda u: isinstance(u, CavalryUnit)),
-    Order("Gallop", "Cavalry move quickly forwards", 5, True, lambda u: isinstance(u, CavalryUnit) and u.currentMovementSpeed == MovementSpeed.Trot),
+    Order("Trot", "Cavalry move fairly quickly forwards", 5, True, lambda u:u.unitType == UnitType.Cavalry),
+    Order("Gallop", "Cavalry move quickly forwards", 5, True, lambda u: u.unitType == UnitType.Cavalry and u.currentMovementSpeed == MovementSpeed.Trot),
     Order("Fire", "Start shooting", 5, False, lambda u: u.firepower() > 0 and not u.shooting),
     Order("Cease Fire", "Stop shooting", 5, True, lambda u: u.shooting),
 ]

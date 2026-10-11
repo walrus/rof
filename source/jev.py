@@ -11,6 +11,7 @@ def unitStateToDict(unit: Unit) -> dict[str, str]:
     """ Write current Unit state to a dict for adding further info"""
     state = {}
     state['name'] = unit.name()
+    state['unitType'] = str(unit.unitType)
     state['currentOrder'] = unit.currentOrder.name if unit.currentOrder else 'None'
     state['morale'] = str(unit.morale)
     state['fighting'] = str(unit.fighting)
@@ -125,7 +126,8 @@ def chooseOrder(unit : Unit, enemies : list[Unit], orders : dict[str, Order], ca
             state={"document": "I'm playing a game in which I command a unit of troops. I need to decide which order to give them, "
             "based on both the unit's current state (`unitState`) and the state of any nearby enemies `enemyState`"
             "Broadly, the priority is to Rally the unit if it's Wavering or Panicked, fire on the enemy if in range and the unit isn't already firing, "
-            "or Run/Move towards them if not in range. If the enemy unit is closer than 10 and they're wavering, we should Charge",
+            "or Run/Move towards them if not in range. If the enemy unit is closer than 10 and they're wavering, we should Charge."
+            "Cavalry units (`unitType` Cavalry) should prioritise charging the enemy",
             "unitState": unitState,
             "enemyState": enemyState
             },
