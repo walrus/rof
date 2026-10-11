@@ -3,7 +3,8 @@ from enum import Enum
 
 # If you have more than N cards, take the best N
 # Means that more cards is good but preserves E.G distance dynamics for shooting
-BEST_OF = 3
+BEST_OF_SHOOTING = 3
+BEST_OF_FIGHTING = 4
 
 # How many Disorder you need to accumulate in one action to Panic
 # 3 is nice because then it's possible, albeit unlikely, in normal shooting
@@ -19,6 +20,9 @@ CANNON_RANGE = 60
 
 # Minimum distance for the purposes of calculating shooting casualties 
 MIN_SHOOTING_DISTANCE = 8
+
+# Similar effect; minimum threshold for calculating fighting casualties
+MIN_FIGHTING_THRESHOLD = 8
 
 class Faction(Enum):
     Royalist = 0

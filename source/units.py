@@ -1,6 +1,6 @@
 from collections.abc import Callable
 from enum import Enum
-from math import ceil, sqrt, atan, degrees, sin, cos
+from math import atan, ceil, cos, sin, sqrt
 
 from source.cards import (
     Card,
@@ -14,7 +14,9 @@ from source.cards import (
     sumCards,
 )
 from source.constants import (
-    BEST_OF,
+    BEST_OF_FIGHTING,
+    BEST_OF_SHOOTING,
+    MIN_FIGHTING_THRESHOLD,
     MIN_SHOOTING_DISTANCE,
     MUSKET_RANGE,
     PANIC_THRESHOLD,
@@ -31,9 +33,10 @@ class UnitType(Enum):
     Other = 3
 
 class MoraleState(Enum):
-    OK = 0
-    Wavering = 1
-    Panicked = 2
+    OK        = 0 # Doing fine
+    Wavering  = 1 # Doing badly but still under control
+    Panicked  = 2 # Running away, but could be rallied
+    Dispersed = 3 # Completely broken; unrally-able
 
 class MovementSpeed(Enum):
     Halt   = 0
@@ -119,7 +122,7 @@ class Unit:
     def setArmour(self, armour: int) -> None:
         self.armour = armour
 
-    # Status, implemented by subclasses 
+    # Status, mostly implemented by subclasses 
     def strength(self) -> int:
         return 0
 
@@ -138,16 +141,23 @@ class Unit:
     def panicked(self) -> bool:
         return self.morale == MoraleState.Panicked
 
-    def fitToFight(self):
+    def dispersed(self) -> bool:
+        return self.morale == MoraleState.Dispersed
+    
+    def fitToFight(self) -> bool:
         return self.strength() > 0 and not self.panicked()
 
     def takeCasualties(self, num: int) -> None:
         pass
 
+    def disperse(self) -> None:
+        self.morale = MoraleState.Dispersed
+
     # Deal with Orders
 
     def carryOut(self, order: Order) -> None:  # noqa: F821 (I'll deal with it!)
         """ Attempt to carry out the given order"""
+        #TODO check for Fighting and Fleeing as those interact with Orders a little differently
         if not order:
             # Carry on as you were 
             # TODO: Things like Halt should clear for neatness, but will have essentially the same effect 
@@ -164,9 +174,11 @@ class Unit:
         match order.name:
             case 'Halt':
                 self.halt()
-            case 'Walk' | 'Run' | 'Reform' | 'Trot' | 'Gallop' | 'Flee':
+            case 'Walk' | 'Run' | 'Reform' | 'Trot' | 'Gallop':
                 moveSpeed = moveSpeedFromOrder(order.name, self.unitType)
                 self.move(order.direction, moveSpeed) # pyright: ignore[reportArgumentType]
+            case 'Flee':
+                self.flee(order.direction) # pyright: ignore[reportArgumentType]
             case 'Fire':
                 self.shootAt(order.target) # pyright: ignore[reportArgumentType] (guaranteed to not be None for this Order type)
             case 'Cease Fire':
@@ -216,18 +228,94 @@ class Unit:
         print(f"New position {self.position[0]},{self.position[1]}")
 
     def charge(self, target: "Unit") -> None:
+        # Before you charge, have to check to see if your men baulk, or theirs flee
+        if not self.panicTest():
+            print(f"{self.name()} baulks and fails to charge {target.name()}")
+            return
+
+        target.panicTest()
+        if target.panicked():
+            # If the target Panics (not just Wavers) then a combat _probably_ won't happen
+            print(f"{target.name()} runs rather than stand and fight {self.name()}")
+            target.flee(self.directionOf(target))
+    
         speed = MovementSpeed.Gallop if self.unitType == UnitType.Cavalry else MovementSpeed.Run
         self.move(self.directionOf(target), speed, True)
 
         if self.distanceTo(target) < 1:
-            self.fight(target)
+            # caught them! If they're fleeing, then they're dispersed
+            if target.panicked():
+                print(f"{self.name()} disperses {target.name()}")
+                target.disperse()
+            else:
+                print(f"{self.name()} charges {target.name()}")
+                self.fight(target)
     
     def fight(self, target: "Unit") -> None:
-        pass
+        # Calculate our effects on the enemy first but apply them simultaneously!
+        enemyCasualtyThreshold = MIN_FIGHTING_THRESHOLD + target.armour
+        friendlyCards = draw(self.ferocity(), BEST_OF_FIGHTING)
+    
+        enemyCasualties = sumCards(friendlyCards) // enemyCasualtyThreshold
+        enemyDisorder = enemyCasualties + numAboveThreshold(friendlyCards, target.steadiness)
+
+        # Now calculate the enemy's
+        friendlyCasualtyThreshold = MIN_FIGHTING_THRESHOLD + self.armour
+        enemyCards = draw(target.ferocity(), BEST_OF_FIGHTING)
+    
+        friendlyCasualties = sumCards(enemyCards) // friendlyCasualtyThreshold
+        friendlyDisorder = friendlyCasualties + numAboveThreshold(enemyCards, self.steadiness)
+
+        ## Add any self-disorder from Aces and ensure you always take at least one
+        enemyDisorder = max(1, enemyDisorder + numAces(enemyCards))
+        friendlyDisorder = max(1, friendlyDisorder + numAces(friendlyCards))
+
+        # Now apply the effects
+        target.takeCasualties(enemyCasualties)
+        target.disorder = target.disorder + enemyDisorder
+        print(f"{target.name()} takes {enemyCasualties} casualties and {enemyDisorder} disorder")
+
+        self.takeCasualties(friendlyCasualties)
+        self.disorder = self.disorder + friendlyDisorder
+        print(f"{self.name()} takes {friendlyCasualties} casualties and {friendlyDisorder} disorder")
+
+        # Finally, trigger panic tests first for the loser and then (if they don't run) the winner
+        loser = target
+        winner = self
+        if friendlyCasualties > enemyCasualties or (friendlyCasualties == enemyCasualties and friendlyDisorder > enemyDisorder):
+            loser = self
+            winner = target
+
+        print(f"{winner.name()} wins this round!")
+
+        # If both sides are still around, then they're both fighting
+        #TODO implement pursuit as an Order type?
+        if loser.panicTest() or loser.wavering:
+            if winner.panicTest() or winner.wavering:
+                self.fighting = True
+                target.fighting = True
+                print("Both sides stay in the fight for another round")
+            else:
+                # Winner ran away! # TODO: this won't work if fighting units end up right on top of each other
+                winner.flee(loser.directionOf(winner))
+                loser.fighting = False
+                print(f"{winner.name()} runs away despite winning!")
+        else:
+            # Loser ran away
+            loser.flee(winner.directionOf(loser))
+            winner.fighting = False
+            print(f"{loser.name()} runs away after losing!")
+
+    def flee(self, direction: tuple[int, int]) -> None:
+        speed = MovementSpeed.Run
+        if self.unitType == UnitType.Cavalry:
+            speed = MovementSpeed.Gallop if not self.blown else MovementSpeed.Trot
+
+        self.move(direction, speed)
 
     def shootAt(self, target: "Unit") -> None:
         distance = max(MIN_SHOOTING_DISTANCE, (self.distanceTo(target) * self.shootingDistanceMultiplier))
-        cards = draw(self.firepower(), BEST_OF)
+        cards = draw(self.firepower(), BEST_OF_SHOOTING)
     
         casualties = sumCards(cards) // distance
         enemyDisorder = casualties + numAboveThreshold(cards, target.steadiness)
@@ -250,7 +338,7 @@ class Unit:
 
     def rally(self) -> None:
         """ Attempt to rally a Panicked unit back to Wavering, or a Wavering unit back to OK"""
-        if not self.moraleCheck():
+        if self.dispersed or not self.moraleCheck():
             return
 
         if self.morale == MoraleState.Wavering:
@@ -275,7 +363,7 @@ class Unit:
         return allKings(panicCards) or not (allAces(panicCards) and sumCards(panicCards) >= self.disorder)
 
     def panicTest(self) -> bool:
-        # If you're already panicked then you fail additional panic tests
+        # If you're already panicked then you fail additional panic tests (but you only disperse if charged)
         if self.morale == MoraleState.Panicked:
             return False
 
@@ -413,6 +501,14 @@ class Order:
         return self.baseDifficulty + unit.disorder if self.addsDisorder else self.baseDifficulty
 
     def isPossible(self, highestCardCombo: int, unit: Unit) -> bool:
+        # Global prerequisites: can't issue orders to a Dispersed unit
+        if unit.dispersed():
+            return False
+
+        # can't issue orders while fighting or panicked, except to Rally, Encourage or Flee
+        if (unit.fighting or unit.panicked()) and self.name not in ['Rally', 'Encourage', 'Flee']:
+            return False
+
         difficulty = self.currentDifficulty(unit)
         meetsPrerequisite = not self.prerequisite or self.prerequisite(unit) 
         return highestCardCombo >= difficulty and meetsPrerequisite
