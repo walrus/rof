@@ -1,5 +1,6 @@
 from enum import Enum
 from math import ceil, sqrt
+from typing import Callable
 
 from source import constants
 from source.cards import Card, allAces, allKings, draw, sumCards
@@ -115,9 +116,7 @@ class Unit:
             panicCards = draw(3, 2, False)
 
         # Panic test always passed on two Kings, and always failed on two Aces
-        if allKings(panicCards):
-            return True
-        elif not allAces(panicCards) and sumCards(panicCards) >= self.steadiness:
+        if allKings(panicCards) or not (allAces(panicCards) and sumCards(panicCards) >= self.disorder):
             return True
 
         if self.panic == PanicState.Wavering:
@@ -249,7 +248,7 @@ class Order:
     description: str
     baseDifficulty: int    # All orders have a base difficulty; 
     addsDisorder: bool     # Some are modified by the Unit's Disorder
-    prerequisite: function | None # Some have special prerequisites; specified by a function which takes a Unit
+    prerequisite: Callable | None # Some have special prerequisites; specified by a function which takes a Unit
     target: Unit | None
     direction: tuple[int, int] | None
 
