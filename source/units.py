@@ -1,6 +1,6 @@
+from collections.abc import Callable
 from enum import Enum
 from math import ceil, sqrt
-from typing import Callable
 
 from source import constants
 from source.cards import Card, allAces, allKings, draw, sumCards
@@ -13,7 +13,7 @@ class UnitType(Enum):
     Artillery = 2
     Other = 3
 
-class PanicState(Enum):
+class MoraleState(Enum):
     OK = 0
     Wavering = 1
     Panicked = 2
@@ -29,11 +29,11 @@ class Outcome:
     def __init__(self, casualties, disorder, panic, event) -> None:
         self.casualties = casualties
         self.disorder = disorder
-        self.panic = panic
+        self.morale = panic
         self.event = event
 
     def anyChange(self) -> bool:
-        return self.casualties > 0 or self.disorder != 0 or self.panic or self.event
+        return self.casualties > 0 or self.disorder != 0 or self.morale or self.event
 
 """ Base class for all Units """
 class Unit:
@@ -42,20 +42,20 @@ class Unit:
     nickname: str
     steadiness: Card
     armour: int
-    panic: PanicState
+    morale: MoraleState
     disorder: int
     shooting: bool # Is this unit currently shooting
     fighting: bool # Is this unit currently fighting
     position: tuple[int, int] # xy; height is ignored for now
     # Note also that all units must implement movementSpeed
-    # currentOrder: Order 
+    currentOrder: Order | None  # noqa: F821
 
     def __init__(self, commander, unitType, nickname=""):
         self.commander = commander
         self.unitType = unitType
         self.nickname = nickname
         self.armour = 0
-        self.panic = PanicState.OK
+        self.morale = MoraleState.OK
         self.disorder = 0
         self.shooting = False
         self.fighting = False
@@ -93,7 +93,7 @@ class Unit:
     def takeCasualties(self, num: int) -> None:
         pass
 
-    def carryOut(self, order: Order):# -> Outcome:
+    def carryOut(self, order: Order):# -> Outcome:  # noqa: F821 (I'll deal with it!)
         """ Attempt to carry out the given order"""
         if not order:
             # Carry on as you were
@@ -103,11 +103,12 @@ class Unit:
                 return Outcome(0, 0, False, None)
         #TODO actually do the thing. Guess I need to encode something within the Order that says what actually happens?
         # Or maybe the Unit needs to encode it?
+        self.currentOrder = order
         return Outcome(0, 0, False, None)
 
     def panicTest(self) -> bool:
         # If you're already panicked then you fail additional panic tests
-        if self.panic == PanicState.Panicked:
+        if self.morale == MoraleState.Panicked:
             return False
         
         if self.commander:
@@ -119,10 +120,10 @@ class Unit:
         if allKings(panicCards) or not (allAces(panicCards) and sumCards(panicCards) >= self.disorder):
             return True
 
-        if self.panic == PanicState.Wavering:
-            self.panic = PanicState.Panicked
+        if self.morale == MoraleState.Wavering:
+            self.morale = MoraleState.Panicked
         else:
-            self.panic = PanicState.Wavering
+            self.morale = MoraleState.Wavering
 
         return False
 
@@ -135,24 +136,24 @@ class Unit:
         return True
 
     def isOK(self) -> bool:
-        return self.panic == PanicState.OK
+        return self.morale == MoraleState.OK
 
     def wavering(self) -> bool:
-        return self.panic == PanicState.Wavering
+        return self.morale == MoraleState.Wavering
 
     def panicked(self) -> bool:
-        return self.panic == PanicState.Panicked
+        return self.morale == MoraleState.Panicked
 
     def fitToFight(self):
         return self.strength() > 0 and not self.panicked()
 
-    def distanceTo(self, target: Unit) -> int:
+    def distanceTo(self, target: "Unit") -> int: # Not Self because subclasses can call this too
         """ Cartesian distance to target, rounded up to the nearest inch"""
         xDist = target.position[0] - self.position[0]
         yDist = target.position[1] - self.position[1]
         return ceil(sqrt((xDist * xDist) + (yDist * yDist)))
 
-    def inRange(self, target: Unit) -> bool:
+    def inRange(self, target: "Unit") -> bool: # Not Self - any subclass can check range to any other subclass
         return False
 
 class InfantryMovementSpeed(Enum):

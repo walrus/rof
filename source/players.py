@@ -1,7 +1,5 @@
 """Represents the actual people playing the game"""
 
-from random import choice
-
 from source.cards import Card, combinations, draw, highestCombination, sumCards
 from source.commission import Colonel
 from source.jev import chooseActivationCard, chooseCardToDiscard, chooseOrder

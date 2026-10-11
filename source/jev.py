@@ -7,6 +7,20 @@ from source.cards import Card
 from source.units import Order, Unit
 
 
+def unitStateToJson(unit: Unit) -> str:
+    """ Turn Unit state into something Jev can understand """
+    state = {}
+    state['name'] = unit.name()
+    state['currentOrder'] = unit.currentOrder
+    state['morale'] = str(unit.morale)
+    state['fighting'] = str(unit.fighting)
+    state['shooting'] = str(unit.shooting)
+    state['disorder'] = str(unit.disorder)
+    state['strength'] = str(unit.strength())
+
+    return dumps(state)
+
+
 def chooseActivationCard(cards : list[Card]) -> Card:
     """ Ask Jev to choose a card from hand to use for activation"""
     # We don't need the value part of the dict for this query, but Jev requires it as a dict
@@ -24,7 +38,7 @@ def chooseActivationCard(cards : list[Card]) -> Card:
         )
         cardChoice = response.answers["card"]
         if cardChoice:
-            card = Card.fromShortString(cardChoice.choice)
+            card = Card.fromShortString(cardChoice.choice) # pyright: ignore[reportAttributeAccessIssue]
             if card:
                 return card
             # Otherwise it failed to parse for some reason; fall back to the first card in the list
@@ -51,7 +65,7 @@ def chooseCardToDiscard(cards : list[Card]) -> Card:
         )
         cardChoice = response.answers["card"]
         if cardChoice:
-            card = Card.fromShortString(cardChoice.choice)
+            card = Card.fromShortString(cardChoice.choice) # pyright: ignore[reportAttributeAccessIssue]
             if card:
                 return card
             # Otherwise it failed to parse for some reason; fall back to the first card in the list
@@ -76,11 +90,11 @@ def chooseOrder(unit : Unit, orders : dict[str, Order], cardCombos: list[tuple[i
 
     # It's always an option to simply do nothing, but we represent that in the game engine with None
     orderOptions = {}
-    # nothingOrderDict = {
-    #     'description': "Carry on without giving any new orders this Turn",
-    #     'difficulty': 0
-    # }
-    # orderOptions['Nothing'] = dumps(nothingOrderDict)
+    nothingOrderDict = {
+        'description': "Carry on without giving any new orders this Turn",
+        'difficulty': 0
+    }
+    orderOptions['Nothing'] = dumps(nothingOrderDict)
 
     for name, order in orders.items():
         orderDict = {
@@ -89,25 +103,29 @@ def chooseOrder(unit : Unit, orders : dict[str, Order], cardCombos: list[tuple[i
         }
         orderOptions[name] = dumps(orderDict)
 
+    unitState = unitStateToJson(unit)
+
     orderToReturn = None
     cardChoiceToReturn = []
 
     with TypeSafeClient() as client:
         response = client.system_one(
             state={"document": "I'm playing a game in which I have a hand of cards, and right now I need to pick a combination of cards to play an Order. "
-            "I need to decide on an Order to play, but I should try not to waste good cards."
+            "I need to decide on an Order to play, taking into account `unitState`, but I should try not to waste good cards."
             "Higher cards are better, and having multiple cards of the same suit is even better (as long as their values sum to more than 10) "
-            "Aces are worth 1, number cards are worth their number, and other face cards are worth 10"},
+            "Aces are worth 1, number cards are worth their number, and other face cards are worth 10",
+            "unitState": unitState,
+            },
             questions={
                 "order": Choice(
-                    instructions="Which Order should I play this turn?",
+                    instructions="Which Order should I play this turn? Take `unitState` into account",
                     criteria=orderOptions
                 ),
             },
         )
         orderChoice = response.answers["order"]
-        if orderChoice and orderChoice.choice and orderChoice.choice != "Nothing":
-            orderToReturn = orders[orderChoice.choice]
+        if orderChoice and orderChoice.choice and orderChoice.choice != "Nothing": # pyright: ignore[reportAttributeAccessIssue]
+            orderToReturn = orders[orderChoice.choice] # pyright: ignore[reportAttributeAccessIssue]
 
     # If we're not giving an Order, then early out
     if not orderToReturn:
@@ -120,7 +138,8 @@ def chooseOrder(unit : Unit, orders : dict[str, Order], cardCombos: list[tuple[i
             state={"document": "]I need to pick a combination of cards with a `value` at least as high as `orderDifficulty` but ideally only just as high, so I can save better cards for later."
             "Higher cards are better, and having multiple cards of the same suit is even better (as long as their values sum to more than 10) "
             "Aces are worth 1, number cards are worth their number, and other face cards are worth 10",
-            "orderDifficulty": str(orderToReturn.currentDifficulty(unit))},
+            "orderDifficulty": str(orderToReturn.currentDifficulty(unit)),
+            },
             questions={
                 "cards": Choice(
                     instructions="Which cards should I use to play the Order? " \
@@ -132,8 +151,8 @@ def chooseOrder(unit : Unit, orders : dict[str, Order], cardCombos: list[tuple[i
         )
 
         cardChoice = response.answers["cards"]
-        if cardChoice and cardChoice.choice:
-            cardsFromChoice = loads(cardOptions[cardChoice.choice])['cards']
+        if cardChoice and cardChoice.choice: # pyright: ignore[reportAttributeAccessIssue]
+            cardsFromChoice = loads(cardOptions[cardChoice.choice])['cards'] # pyright: ignore[reportAttributeAccessIssue]
             cardChoiceToReturn = [Card.fromShortString(card) for card in cardsFromChoice]
 
-    return orderToReturn, cardChoiceToReturn
+    return orderToReturn, cardChoiceToReturn # pyright: ignore[reportReturnType] (fromShortString won't fail)
