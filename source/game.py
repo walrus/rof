@@ -17,14 +17,15 @@ class Game:
         activation_cards = []
         for player in self.players: # type: ignore
             player.drawStep()
+            print(f"Player {player.name} has hand {' '.join(str(card) for card in player.hand)}")
             card = player.chooseActivationCard()
             print(f"{player.name} chooses to activate with a {card!s}")
             activation_cards.append((card, player))
+
         activation_cards.sort(key= lambda x: x[0], reverse=True) # sort by the card not the player
 
         # Activation phase
         for card, player in activation_cards:
-            
             print(f"Activation: {player.name} with a {card!s}")
             order = player.chooseOrder()
             print(f"Order: {player.unit.name()} is ordered to {order.name if order else "do nothing"}")

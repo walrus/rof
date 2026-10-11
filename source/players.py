@@ -4,7 +4,7 @@ from random import choice
 
 from source.cards import Card, draw, highestCombination
 from source.commission import Colonel
-from source.jev import chooseActivationCard
+from source.jev import chooseActivationCard, chooseCardToDiscard
 from source.units import Order, Unit, basicOrders
 
 
@@ -31,10 +31,12 @@ class Player:
         if len(self.hand) <= self.grip:
             return
 
-        # Otherwise got to get rid of some
-        #TODO: do this somewhat more optimally via Jev!
+        # Otherwise got to get rid of some - most of the time this will be only one
+        # but it's possible to E.G lose more than one Grip in a turn
         while len(self.hand) > self.grip:
-            self.hand.pop()
+            cardChoice = chooseCardToDiscard(self.hand)
+            print(f"{self.name} chooses to discard a {cardChoice!s}")
+            self.hand.remove(cardChoice)
 
     def chooseActivationCard(self) -> Card:
         """ Pick and spend an activation card, using Jev to choose """
@@ -45,7 +47,6 @@ class Player:
     def orderOptions(self) -> list[Order]:
         """ Get all possible Orders, ruling out any that no combination of cards in hand can play"""
         highestCardCombo = highestCombination(self.hand)
-        print(f"Highest combo: {highestCardCombo}")
         return [order for order in basicOrders if order.isPossible(highestCardCombo, self.unit)]
 
     def chooseOrder(self) -> Order | None:

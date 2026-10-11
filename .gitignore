@@ -1,5 +1,6 @@
 .venv/*
 source/__pycache__/*
+apikey
 
 # just for doodling, not for committing
 scratch.py
