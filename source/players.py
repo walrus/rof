@@ -2,9 +2,9 @@
 
 from random import choice
 
-from source.cards import Card, draw, highestCombination
+from source.cards import Card, combinations, draw, highestCombination, sumCards
 from source.commission import Colonel
-from source.jev import chooseActivationCard, chooseCardToDiscard
+from source.jev import chooseActivationCard, chooseCardToDiscard, chooseOrder
 from source.units import Order, Unit, basicOrders
 
 
@@ -44,19 +44,36 @@ class Player:
         self.hand.remove(cardChoice)
         return cardChoice
 
-    def orderOptions(self) -> list[Order]:
+    def orderOptions(self) -> dict[str, Order]:
         """ Get all possible Orders, ruling out any that no combination of cards in hand can play"""
         highestCardCombo = highestCombination(self.hand)
-        return [order for order in basicOrders if order.isPossible(highestCardCombo, self.unit)]
+        return {order.name: order for order in basicOrders if order.isPossible(highestCardCombo, self.unit)}
 
     def chooseOrder(self) -> Order | None:
         """ Pick an order to give """
-        #TODO take account of cards used & actually pick orders sensibly!
-        # cardCombos = combinations(self.hand)
         options = self.orderOptions()
 
         if not options:
             print("No options available!")
             return None
 
-        return choice(self.orderOptions())
+        cardCombos = combinations(self.hand)
+
+        chosenOrder, chosenCards = chooseOrder(self.unit, options, cardCombos)
+
+        print(f"Playing order {chosenOrder.name if chosenOrder else 'None'} with {' '.join(str(card) for card in chosenCards) if chosenCards else 'no cards'}")
+
+        if not chosenOrder:
+            return None
+
+        diff = chosenOrder.currentDifficulty(self.unit)
+        chosenSum = sumCards(chosenCards)
+        if chosenSum < diff:
+            # Blunder! TODO: write the Blunder table
+            print(f"{self.name} has Blundered, trying play {chosenOrder.name} (Difficulty {diff}) with cards totalling {chosenSum}!")
+            return None
+        
+        for card in chosenCards:
+            self.hand.remove(card)
+
+        return chosenOrder

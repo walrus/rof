@@ -225,7 +225,7 @@ class CavalryUnit(Unit):
     def __init__(self, commander, horse, nickname=""):
         super().__init__(commander, UnitType.Cavalry, nickname)
         self.horse = horse
-        self.unitType = UnitType.Infantry
+        self.unitType = UnitType.Cavalry
         self.movementSpeed = CavalryMovementSpeed.Halt
 
     def ferocity(self) -> int:

@@ -19,7 +19,6 @@ class Game:
             player.drawStep()
             print(f"Player {player.name} has hand {' '.join(str(card) for card in player.hand)}")
             card = player.chooseActivationCard()
-            print(f"{player.name} chooses to activate with a {card!s}")
             activation_cards.append((card, player))
 
         activation_cards.sort(key= lambda x: x[0], reverse=True) # sort by the card not the player

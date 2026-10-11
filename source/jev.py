@@ -1,7 +1,10 @@
 """ Calls Jev to make simulated player decisions """
+from json import dumps, loads
+
 from typesafe_sdk import Choice, TypeSafeClient
 
 from source.cards import Card
+from source.units import Order, Unit
 
 
 def chooseActivationCard(cards : list[Card]) -> Card:
@@ -56,3 +59,81 @@ def chooseCardToDiscard(cards : list[Card]) -> Card:
     # Fallback if I've messed up somewhere
     print(f"Something went wrong discarding; defaulting to {cards[0]}")
     return cards[0]
+
+def chooseOrder(unit : Unit, orders : dict[str, Order], cardCombos: list[tuple[int, list[Card]]]) -> tuple[Order | None, list[Card]]:
+    """ Ask Jev to choose an order to give and the cards to discard in order to play it
+        Makes two calls to the Jev API so that we can ensure the cards are actually capable of playing the Order"""
+
+    # Turn our lists of orders and cards into dicts of JSON objects that Jev can understand
+    cardOptions = {}
+
+    for i, combo in enumerate(cardCombos):
+        optionDict = {
+            'cards': [str(card) for card in combo[1]],
+            'value': str(combo[0])
+        }
+        cardOptions[str(i)] = dumps(optionDict)
+
+    # It's always an option to simply do nothing, but we represent that in the game engine with None
+    orderOptions = {}
+    # nothingOrderDict = {
+    #     'description': "Carry on without giving any new orders this Turn",
+    #     'difficulty': 0
+    # }
+    # orderOptions['Nothing'] = dumps(nothingOrderDict)
+
+    for name, order in orders.items():
+        orderDict = {
+            'description': order.description,
+            'difficulty': str(order.currentDifficulty(unit))
+        }
+        orderOptions[name] = dumps(orderDict)
+
+    orderToReturn = None
+    cardChoiceToReturn = []
+
+    with TypeSafeClient() as client:
+        response = client.system_one(
+            state={"document": "I'm playing a game in which I have a hand of cards, and right now I need to pick a combination of cards to play an Order. "
+            "I need to decide on an Order to play, but I should try not to waste good cards."
+            "Higher cards are better, and having multiple cards of the same suit is even better (as long as their values sum to more than 10) "
+            "Aces are worth 1, number cards are worth their number, and other face cards are worth 10"},
+            questions={
+                "order": Choice(
+                    instructions="Which Order should I play this turn?",
+                    criteria=orderOptions
+                ),
+            },
+        )
+        orderChoice = response.answers["order"]
+        if orderChoice and orderChoice.choice and orderChoice.choice != "Nothing":
+            orderToReturn = orders[orderChoice.choice]
+
+    # If we're not giving an Order, then early out
+    if not orderToReturn:
+        return None, []
+
+    # Otherwise, now we have an order, choose the cards to play it
+
+    with TypeSafeClient() as client:
+        response = client.system_one(
+            state={"document": "]I need to pick a combination of cards with a `value` at least as high as `orderDifficulty` but ideally only just as high, so I can save better cards for later."
+            "Higher cards are better, and having multiple cards of the same suit is even better (as long as their values sum to more than 10) "
+            "Aces are worth 1, number cards are worth their number, and other face cards are worth 10",
+            "orderDifficulty": str(orderToReturn.currentDifficulty(unit))},
+            questions={
+                "cards": Choice(
+                    instructions="Which cards should I use to play the Order? " \
+                    "Try to play the combination of cards with the lowest possible Value which meets or exceeds `orderDifficulty`" \
+                    "If `orderDifficulty` is 0, then play no cards (the empty list)",
+                    criteria=cardOptions,
+                ),
+            },
+        )
+
+        cardChoice = response.answers["cards"]
+        if cardChoice and cardChoice.choice:
+            cardsFromChoice = loads(cardOptions[cardChoice.choice])['cards']
+            cardChoiceToReturn = [Card.fromShortString(card) for card in cardsFromChoice]
+
+    return orderToReturn, cardChoiceToReturn

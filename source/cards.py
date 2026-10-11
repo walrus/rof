@@ -200,7 +200,7 @@ def combinations(cards: list[Card]) -> list[tuple[int, list[Card]]]:
         Returns [(19, [J♥, 9♥]), (10, [J♥]), (10, [10♠]), (9, [9♥]), (5, [5♣])]
     """
     cc = cards.copy()
-    combinations = []
+    combinations = [(0, [])] # Always include the zero-card combination
     while cc:
         first = cc.pop()
         combinations.append((first.value(), [first]))
