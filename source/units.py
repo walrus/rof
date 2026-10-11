@@ -188,11 +188,12 @@ class Unit:
         cardsDrawn = cardDrawFromMovementSpeed(speed)
         distance = sumCards(cardsDrawn)
 
-        if speed == MovementSpeed.Run or speed == MovementSpeed.Gallop:
+        if speed == MovementSpeed.Run:
             self.disorder = self.disorder + 1
-            #TODO: implement Dash for cavalry
-            #if numAboveThreshold(cardsDrawn, self.dash):
-            #    self.blown = True
+        elif speed == MovementSpeed.Gallop:
+            self.disorder = self.disorder + 1
+            if numAboveThreshold(cardsDrawn, self.dash): # pyright: ignore[reportAttributeAccessIssue] cavalry units definitely have this
+                self.blown = True
         
         moveVector = ()
         # Handle moves along an axis:
@@ -362,12 +363,16 @@ class InfantryUnit(Unit):
 
 class CavalryUnit(Unit):
     horse: int # Number of horsemen in the unit
+    dash: Card
+    blown: bool
 
     def __init__(self, commander, faction, horse, nickname=""):
         super().__init__(commander, UnitType.Cavalry, faction, nickname)
         self.horse = horse
         self.unitType = UnitType.Cavalry
         self.shootingDistanceMultiplier = 2
+        self.dash = Card.fromRankAndSuit(Rank.Eight, Suit.Clubs)
+        self.blown = False
 
     def ferocity(self) -> int:
         return self.horse // 2
@@ -430,7 +435,7 @@ basicOrders = [
     Order("Encourage", "Make the troops feel better", 1, False, lambda u: u.disorder > 0),
     Order("Charge", "Move quickly towards the enemy", 5, True, lambda u: u.isOK()),
     Order("Trot", "Cavalry move fairly quickly forwards", 5, True, lambda u:u.unitType == UnitType.Cavalry),
-    Order("Gallop", "Cavalry move quickly forwards", 5, True, lambda u: u.unitType == UnitType.Cavalry and u.currentMovementSpeed == MovementSpeed.Trot),
+    Order("Gallop", "Cavalry move quickly forwards", 5, True, lambda u: u.unitType == UnitType.Cavalry and u.currentMovementSpeed == MovementSpeed.Trot and not u.blown),
     Order("Fire", "Start shooting", 5, False, lambda u: u.firepower() > 0 and not u.shooting),
     Order("Cease Fire", "Stop shooting", 5, True, lambda u: u.shooting),
 ]
