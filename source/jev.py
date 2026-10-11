@@ -18,6 +18,7 @@ def unitStateToDict(unit: Unit) -> dict[str, str]:
     state['shooting'] = str(unit.shooting)
     state['disorder'] = str(unit.disorder)
     state['strength'] = str(unit.strength())
+    state['position'] = f"{unit.position[0]},{unit.position[1]}"
     return state
 
 def unitStateToJson(unit: Unit) -> str:
@@ -115,6 +116,7 @@ def chooseOrder(unit : Unit, enemies : list[Unit], orders : dict[str, Order], ca
         
         enemyDict['distance'] = str(unit.distanceTo(enemy))
         enemyDict['isInRange'] = str(unit.inRange(enemy))
+        enemyDict['isInChargeRange'] = str(unit.inChargeRange(enemy))
 
         enemyState[enemy.name()] = dumps(enemyDict)
 
@@ -128,13 +130,13 @@ def chooseOrder(unit : Unit, enemies : list[Unit], orders : dict[str, Order], ca
             "Broadly, the priority is to Rally the unit if it's Wavering or Panicked, fire on the enemy if in range and the unit isn't already firing, "
             "or Run/Move towards them if not in range. If the enemy unit is closer than 10 and they're wavering, we should Charge."
             "If the current Order matches what we would otherwise prioritise, consider `Encourage` if we have any Disorder or `Nothing`"
-            "Cavalry units (`unitType` Cavalry) should prioritise charging the enemy",
+            "Cavalry units (`unitType` Cavalry) should prioritise charging the enemy if `isInChargeRange`, or move towards them otherwise",
             "unitState": unitState,
             "enemyState": enemyState
             },
             questions={
                 "order": Choice(
-                    instructions="Which Order should I play this turn? Take `unitState` into account",
+                    instructions="Which Order should I play this turn? Take `unitState` and `enemyState` into account",
                     criteria=orderOptions
                 ),
             },

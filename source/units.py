@@ -22,6 +22,8 @@ from source.constants import (
     PANIC_THRESHOLD,
     PISTOL_RANGE,
     Faction,
+    SINGLE_CARD_CHARGE_MAX,
+    TWO_CARD_CHARGE_MAX
 )
 
 """ Represents individual units on the tabletop """
@@ -145,7 +147,7 @@ class Unit:
         return self.morale == MoraleState.Dispersed
     
     def fitToFight(self) -> bool:
-        return self.strength() > 0 and not self.panicked()
+        return self.strength() > 0 and not (self.panicked() or self.dispersed())
 
     def takeCasualties(self, num: int) -> None:
         pass
@@ -210,9 +212,9 @@ class Unit:
         moveVector = ()
         # Handle moves along an axis:
         if direction[0] == 0:
-            moveVector = (0, distance)
+            moveVector = (0, distance if direction[1] > 0 else -distance)
         elif direction[1] == 0:
-            moveVector = (distance, 0)
+            moveVector = (distance if direction[0] > 0 else -distance, 0)
         else:
             # Transform cartesian distance moved into x,y, rounding to the nearest int
             angle = atan(direction[0] / direction[1])
@@ -225,7 +227,7 @@ class Unit:
 
         print(f"Moving: {moveVector[0]},{moveVector[1]}")
         self.position = (self.position[0] + round(moveVector[0]), self.position[1] + round(moveVector[1]))
-        print(f"New position {self.position[0]},{self.position[1]}")
+        #print(f"New position {self.position[0]},{self.position[1]}")
 
     def charge(self, target: "Unit") -> None:
         # Before you charge, have to check to see if your men baulk, or theirs flee
@@ -393,6 +395,9 @@ class Unit:
     def inRange(self, target: "Unit") -> bool: # Not Self - any subclass can check range to any other subclass
         return False
 
+    def inChargeRange(self, target: "Unit") -> bool:
+        return False
+
     def isEnemy(self, faction: Faction) -> bool:
         return faction != self.faction
 
@@ -419,6 +424,9 @@ class InfantryUnit(Unit):
 
     def inRange(self, target: Unit) -> bool:
         return self.distanceTo(target) <= MUSKET_RANGE
+
+    def inChargeRange(self, target: Unit) -> bool:
+        return self.distanceTo(target) <= SINGLE_CARD_CHARGE_MAX
 
     def takeCasualties(self, num: int) -> None:
         if num == 0:
@@ -474,6 +482,9 @@ class CavalryUnit(Unit):
     def inRange(self, target: Unit) -> bool:
         return self.distanceTo(target) <= PISTOL_RANGE
 
+    def inChargeRange(self, target: Unit) -> bool:
+        distance = self.distanceTo(target)
+        return distance <= SINGLE_CARD_CHARGE_MAX if self.blown else distance <= TWO_CARD_CHARGE_MAX
 
 class Order:
     """ Represents an order a Player might give to a Unit 
@@ -500,13 +511,19 @@ class Order:
     def currentDifficulty(self, unit: Unit) -> int:
         return self.baseDifficulty + unit.disorder if self.addsDisorder else self.baseDifficulty
 
-    def isPossible(self, highestCardCombo: int, unit: Unit) -> bool:
+    def isPossible(self, highestCardCombo: int, unit: Unit, enemies: list[Unit]) -> bool:
         # Global prerequisites: can't issue orders to a Dispersed unit
         if unit.dispersed():
             return False
 
         # can't issue orders while fighting or panicked, except to Rally, Encourage or Flee
         if (unit.fighting or unit.panicked()) and self.name not in ['Rally', 'Encourage', 'Flee']:
+            return False
+
+        # Can't Fire or Charge if not in range
+        if self.name == 'Fire' and not any(unit.inRange(enemy) for enemy in enemies):
+            return False
+        if self.name == 'Charge' and not any(unit.inChargeRange(enemy) for enemy in enemies):
             return False
 
         difficulty = self.currentDifficulty(unit)

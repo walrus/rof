@@ -18,6 +18,10 @@ PISTOL_RANGE = 15
 MUSKET_RANGE = 30
 CANNON_RANGE = 60
 
+# Charge ranges are max of two cards (unblown Cavalry) or one card (everyone else)
+TWO_CARD_CHARGE_MAX = 20
+SINGLE_CARD_CHARGE_MAX = 10
+
 # Minimum distance for the purposes of calculating shooting casualties 
 MIN_SHOOTING_DISTANCE = 8
 

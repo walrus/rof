@@ -20,7 +20,7 @@ class Game:
         activation_cards = []
         for player in self.players: # type: ignore
             player.drawStep()
-            print(f"Player {player.name} has hand {' '.join(str(card) for card in player.hand)}")
+            #print(f"Player {player.name} has hand {' '.join(str(card) for card in player.hand)}")
             card = player.chooseActivationCard()
             activation_cards.append((card, player))
 
@@ -28,11 +28,12 @@ class Game:
 
         # Activation phase
         for card, player in activation_cards:
-            print(f"Activation: {player.name} with a {card!s}")
+            #print(f"Activation: {player.name} with a {card!s}")
             enemyUnits = [unit for unit in self.units if unit.isEnemy(player.faction)]
             order = player.chooseOrder(enemyUnits)
-            print(f"Order: {player.unit.name()} is ordered to {order.name if order else "do nothing"}")
+            #print(f"Order: {player.unit.name()} is ordered to {order.name if order else "do nothing"}")
             player.unit.carryOut(order)
+            print(f"{player.unit.name()} now at {player.unit.position[0]},{player.unit.position[1]}")
 
         # Panic phase
         #TODO: figure out how I'm checking for panic here

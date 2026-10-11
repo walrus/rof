@@ -36,7 +36,7 @@ class Player:
         # but it's possible to E.G lose more than one Grip in a turn
         while len(self.hand) > self.grip:
             cardChoice = chooseCardToDiscard(self.hand)
-            print(f"{self.name} chooses to discard a {cardChoice!s}")
+            #print(f"{self.name} chooses to discard a {cardChoice!s}")
             self.hand.remove(cardChoice)
 
     def chooseActivationCard(self) -> Card:
@@ -45,14 +45,14 @@ class Player:
         self.hand.remove(cardChoice)
         return cardChoice
 
-    def orderOptions(self) -> dict[str, Order]:
+    def orderOptions(self, enemies: list[Unit]) -> dict[str, Order]:
         """ Get all possible Orders, ruling out any that no combination of cards in hand can play"""
         highestCardCombo = highestCombination(self.hand)
-        return {order.name: order for order in basicOrders if order.isPossible(highestCardCombo, self.unit)}
+        return {order.name: order for order in basicOrders if order.isPossible(highestCardCombo, self.unit, enemies)}
 
     def chooseOrder(self, enemies: list[Unit]) -> Order | None:
         """ Pick an order to give """
-        options = self.orderOptions()
+        options = self.orderOptions(enemies)
 
         if not options:
             print("No options available!")
