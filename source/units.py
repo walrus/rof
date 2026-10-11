@@ -2,7 +2,7 @@ from collections.abc import Callable
 from enum import Enum
 from math import ceil, sqrt
 
-from source.cards import Card, allAces, allKings, draw, sumCards
+from source.cards import Card, Rank, Suit, allAces, allKings, draw, sumCards
 from source.constants import MUSKET_RANGE, PISTOL_RANGE, Faction
 
 """ Represents individual units on the tabletop """
@@ -18,22 +18,22 @@ class MoraleState(Enum):
     Wavering = 1
     Panicked = 2
 
+class MovementSpeed(Enum):
+    Halt   = 0
+    Slow   = 1
+    Walk   = 2
+    Run    = 3 # Only for infantry
+    Trot   = 4 # Only for cavalry
+    Gallop = 5 # Only for cavalry
 
-""" Describes the change in state of a Unit after an Action """
-class Outcome:
-    casualties: int
-    disorder: int
-    panic: bool
-    event: bool # TODO: Events table once the core game is running OK
+def moveSpeedFromOrder(string : str, unitType: UnitType) -> MovementSpeed:
+    """ Convert a given Order into a movement speed """
+    if string == "Reform":
+        return MovementSpeed.Slow
+    elif string == "Flee":
+        return MovementSpeed.Gallop if unitType == UnitType.Cavalry else MovementSpeed.Run
 
-    def __init__(self, casualties, disorder, panic, event) -> None:
-        self.casualties = casualties
-        self.disorder = disorder
-        self.morale = panic
-        self.event = event
-
-    def anyChange(self) -> bool:
-        return self.casualties > 0 or self.disorder != 0 or self.morale or self.event
+    return MovementSpeed[string]
 
 """ Base class for all Units """
 class Unit:
@@ -50,6 +50,7 @@ class Unit:
     position: tuple[int, int] # xy; height is ignored for now
     # Note also that all units must implement movementSpeed
     currentOrder: Order | None  # noqa: F821
+    currentMovementSpeed: MovementSpeed
 
     def __init__(self, commander, unitType, faction, nickname=""):
         self.commander = commander
@@ -63,8 +64,10 @@ class Unit:
         self.fighting = False
         self.position = (0, 0)
         self.currentOrder = None
-        #self.steadiness = constants.DEFAULT_STEADINESS #TODO: Card defaults!
+        self.steadiness = Card.fromRankAndSuit(Rank.Nine, Suit.Clubs)
+        self.currentMovementSpeed = MovementSpeed.Halt
 
+    # Setters, mostly fixed for Unit lifetime
     def name(self) -> str:
         if self.nickname:
             return self.nickname
@@ -77,14 +80,15 @@ class Unit:
             return f"{self.commander}'s battery of guns"
         return f"{self.commander}'s men"
     
-    def strength(self) -> int:
-        return 0
-
     def setSteadiness(self, steadiness: Card) -> None:
         self.steadiness = steadiness
 
     def setArmour(self, armour: int) -> None:
         self.armour = armour
+
+    # Status, implemented by subclasses 
+    def strength(self) -> int:
+        return 0
 
     def ferocity(self) -> int:
         return 0
@@ -92,21 +96,75 @@ class Unit:
     def firepower(self) -> int:
         return 0
 
+    def isOK(self) -> bool:
+        return self.morale == MoraleState.OK
+
+    def wavering(self) -> bool:
+        return self.morale == MoraleState.Wavering
+
+    def panicked(self) -> bool:
+        return self.morale == MoraleState.Panicked
+
+    def fitToFight(self):
+        return self.strength() > 0 and not self.panicked()
+
     def takeCasualties(self, num: int) -> None:
         pass
 
-    def carryOut(self, order: Order):# -> Outcome:  # noqa: F821 (I'll deal with it!)
+    # Deal with Orders
+
+    def carryOut(self, order: Order) -> None:  # noqa: F821 (I'll deal with it!)
         """ Attempt to carry out the given order"""
         if not order:
-            # Carry on as you were
+            # Carry on as you were 
+            # TODO: Things like Halt should clear for neatness, but will have essentially the same effect 
+            # if they get enacted every turn so low priority
             if self.currentOrder:
-                return self.carryOut(self.currentOrder)
-            else:
-                return Outcome(0, 0, False, None)
-        #TODO actually do the thing. Guess I need to encode something within the Order that says what actually happens?
-        # Or maybe the Unit needs to encode it?
+                self.carryOut(self.currentOrder)
+            return
+
         self.currentOrder = order
-        return Outcome(0, 0, False, None)
+
+        match order.name:
+            case 'Halt':
+                self.halt()
+            case 'Walk' | 'Run' | 'Reform' | 'Trot' | 'Gallop' | 'Flee':
+                moveSpeed = moveSpeedFromOrder(order.name, self.unitType)
+                self.move(order.direction, moveSpeed) # pyright: ignore[reportArgumentType]
+            case 'Fire':
+                self.shootAt(order.target) # pyright: ignore[reportArgumentType] (guaranteed to not be None for this Order type)
+            case 'Cease Fire':
+                self.ceaseFire()
+            case 'Rally':
+                self.rally()
+            case 'Encourage':
+                self.encourage()
+            case 'Charge':
+                self.charge(order.target) # pyright: ignore[reportArgumentType]
+            case _:
+                print(f"Unknown Order given: {order.name}")
+        return
+
+    def halt(self) -> None:
+        self.currentMovementSpeed = MovementSpeed.Halt
+
+    def move(self, direction: tuple[int, int], speed) -> None:
+        pass
+
+    def shootAt(self, target: "Unit") -> None:
+        pass
+
+    def ceaseFire(self) -> None:
+        self.shooting = False
+
+    def rally(self) -> None:
+        pass
+
+    def encourage(self) -> None:
+        pass
+
+    def charge(self, target: "Unit") -> None:
+        pass
 
     def panicTest(self) -> bool:
         # If you're already panicked then you fail additional panic tests
@@ -129,30 +187,15 @@ class Unit:
 
         return False
 
-    def applyOutcome(self, outcome: Outcome) -> bool:
-        self.disorder = self.disorder + outcome.disorder
-        self.takeCasualties(outcome.casualties)
-
-        if (outcome.panic):
-            return self.panicTest()
-        return True
-
-    def isOK(self) -> bool:
-        return self.morale == MoraleState.OK
-
-    def wavering(self) -> bool:
-        return self.morale == MoraleState.Wavering
-
-    def panicked(self) -> bool:
-        return self.morale == MoraleState.Panicked
-
-    def fitToFight(self):
-        return self.strength() > 0 and not self.panicked()
+    def directionOf(self, target: "Unit") -> tuple[int, int]:
+        """ Vector in the direction of target """
+        xDist = target.position[0] - self.position[0]
+        yDist = target.position[1] - self.position[1]
+        return (xDist, yDist)
 
     def distanceTo(self, target: "Unit") -> int: # Not Self because subclasses can call this too
         """ Cartesian distance to target, rounded up to the nearest inch"""
-        xDist = target.position[0] - self.position[0]
-        yDist = target.position[1] - self.position[1]
+        xDist, yDist = self.directionOf(target)
         return ceil(sqrt((xDist * xDist) + (yDist * yDist)))
 
     def inRange(self, target: "Unit") -> bool: # Not Self - any subclass can check range to any other subclass
@@ -161,22 +204,15 @@ class Unit:
     def isEnemy(self, faction: Faction) -> bool:
         return faction != self.faction
 
-class InfantryMovementSpeed(Enum):
-    Halt = 0
-    Walk = 1
-    Run = 2
-
 class InfantryUnit(Unit):
     pike: int # How many pikemen are in the unit
     shot: int # How many musketeers are in the unit
-    movementSpeed: InfantryMovementSpeed
 
     def __init__(self, commander, faction, pike, shot, nickname=""):
         super().__init__(commander, UnitType.Infantry, faction, nickname)
         self.pike = pike
         self.shot = shot
         self.unitType = UnitType.Infantry
-        self.movementSpeed = InfantryMovementSpeed.Halt
 
     def ferocity(self) -> int:
         return self.pike // 4
@@ -218,21 +254,13 @@ class InfantryUnit(Unit):
         else:
             self.shot = 0
 
-class CavalryMovementSpeed(Enum):
-    Halt = 0
-    Walk = 1
-    Trot = 2
-    Gallop = 3
-
 class CavalryUnit(Unit):
-    movementSpeed: CavalryMovementSpeed
     horse: int # Number of horsemen in the unit
 
     def __init__(self, commander, faction, horse, nickname=""):
         super().__init__(commander, UnitType.Cavalry, faction, nickname)
         self.horse = horse
         self.unitType = UnitType.Cavalry
-        self.movementSpeed = CavalryMovementSpeed.Halt
 
     def ferocity(self) -> int:
         return self.horse // 2
@@ -284,7 +312,7 @@ class Order:
 # Common orders that most units can carry out
 # description, base difficulty, adds disorder, prerequisite
 basicOrders = [
-    Order("Halt", "Stop what you're doing", 5, True, lambda u: u.shooting or u.movementSpeed.value > 0),
+    Order("Halt", "Stop what you're doing", 5, True, lambda u: u.currentMovementSpeed.value > 0 and u.currentMovementSpeed != MovementSpeed.Gallop),
     Order("Walk", "Move slowly forwards", 5, True, None),
     Order("Run", "Move quickly forwards", 5, True, lambda u: isinstance(u, InfantryUnit)),
     Order("Reform", "Move slowly into a new formation", 5, True, None),
@@ -293,7 +321,7 @@ basicOrders = [
     Order("Encourage", "Make the troops feel better", 0, False, lambda u: u.disorder > 0),
     Order("Charge", "Move quickly towards the enemy", 5, True, lambda u: u.isOK()),
     Order("Trot", "Cavalry move fairly quickly forwards", 5, True, lambda u: isinstance(u, CavalryUnit)),
-    Order("Gallop", "Cavalry move quickly forwards", 5, True, lambda u: isinstance(u, CavalryUnit) and u.movementSpeed == CavalryMovementSpeed.Trot),
+    Order("Gallop", "Cavalry move quickly forwards", 5, True, lambda u: isinstance(u, CavalryUnit) and u.currentMovementSpeed == MovementSpeed.Trot),
     Order("Fire", "Start shooting", 5, False, lambda u: u.firepower() > 0 and not u.shooting),
     Order("Cease Fire", "Stop shooting", 5, True, lambda u: u.shooting),
 ]

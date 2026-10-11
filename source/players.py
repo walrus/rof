@@ -77,4 +77,13 @@ class Player:
         for card in chosenCards:
             self.hand.remove(card)
 
+        # TODO: work on target choice; for now always pick the sole enemy
+        if chosenOrder.name in ['Fire', 'Charge']:
+            chosenOrder.target = enemies[0]
+        elif chosenOrder.name in ['Walk', 'Run', 'Trot', 'Gallop']:
+            chosenOrder.direction = self.unit.directionOf(enemies[0])
+        elif chosenOrder.name in ['Flee']:
+            directionTo = self.unit.directionOf(enemies[0])
+            chosenOrder.direction = (directionTo[0] * -1, directionTo[1] * -1)
+        
         return chosenOrder

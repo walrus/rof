@@ -122,10 +122,10 @@ def chooseOrder(unit : Unit, enemies : list[Unit], orders : dict[str, Order], ca
 
     with TypeSafeClient() as client:
         response = client.system_one(
-            state={"document": "I'm playing a game in which I have a hand of cards, and right now I need to pick a combination of cards to play an Order. "
-            "I need to decide on an Order to play, taking into account `unitState` and `enemyState`, but I should try not to waste good cards."
-            "Higher cards are better, and having multiple cards of the same suit is even better (as long as their values sum to more than 10) "
-            "Aces are worth 1, number cards are worth their number, and other face cards are worth 10",
+            state={"document": "I'm playing a game in which I command a unit of troops. I need to decide which order to give them, "
+            "based on both the unit's current state (`unitState`) and the state of any nearby enemies `enemyState`"
+            "Broadly, the priority is to Rally the unit if it's Wavering or Panicked, fire on the enemy if in range and the unit isn't already firing, "
+            "or Run/Move towards them if not in range. If the enemy unit is closer than 10 and they're wavering, we should Charge",
             "unitState": unitState,
             "enemyState": enemyState
             },
