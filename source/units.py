@@ -2,8 +2,8 @@ from collections.abc import Callable
 from enum import Enum
 from math import ceil, sqrt
 
-from source import constants
 from source.cards import Card, allAces, allKings, draw, sumCards
+from source.constants import MUSKET_RANGE, PISTOL_RANGE, Faction
 
 """ Represents individual units on the tabletop """
 
@@ -42,6 +42,7 @@ class Unit:
     nickname: str
     steadiness: Card
     armour: int
+    faction: Faction
     morale: MoraleState
     disorder: int
     shooting: bool # Is this unit currently shooting
@@ -50,18 +51,19 @@ class Unit:
     # Note also that all units must implement movementSpeed
     currentOrder: Order | None  # noqa: F821
 
-    def __init__(self, commander, unitType, nickname=""):
+    def __init__(self, commander, unitType, faction, nickname=""):
         self.commander = commander
         self.unitType = unitType
         self.nickname = nickname
         self.armour = 0
+        self.faction = faction # TODO: pass in faction from owning Player
         self.morale = MoraleState.OK
         self.disorder = 0
         self.shooting = False
         self.fighting = False
         self.position = (0, 0)
         self.currentOrder = None
-        #self.steadiness = constants.DEFAULT_STEADINESS
+        #self.steadiness = constants.DEFAULT_STEADINESS #TODO: Card defaults!
 
     def name(self) -> str:
         if self.nickname:
@@ -156,6 +158,9 @@ class Unit:
     def inRange(self, target: "Unit") -> bool: # Not Self - any subclass can check range to any other subclass
         return False
 
+    def isEnemy(self, faction: Faction) -> bool:
+        return faction != self.faction
+
 class InfantryMovementSpeed(Enum):
     Halt = 0
     Walk = 1
@@ -166,8 +171,8 @@ class InfantryUnit(Unit):
     shot: int # How many musketeers are in the unit
     movementSpeed: InfantryMovementSpeed
 
-    def __init__(self, commander, pike, shot, nickname=""):
-        super().__init__(commander, UnitType.Infantry, nickname)
+    def __init__(self, commander, faction, pike, shot, nickname=""):
+        super().__init__(commander, UnitType.Infantry, faction, nickname)
         self.pike = pike
         self.shot = shot
         self.unitType = UnitType.Infantry
@@ -183,7 +188,7 @@ class InfantryUnit(Unit):
         return self.pike + self.shot
 
     def inRange(self, target: Unit) -> bool:
-        return self.distanceTo(target) <= constants.MUSKET_RANGE
+        return self.distanceTo(target) <= MUSKET_RANGE
 
     def takeCasualties(self, num: int) -> None:
         if num == 0:
@@ -223,8 +228,8 @@ class CavalryUnit(Unit):
     movementSpeed: CavalryMovementSpeed
     horse: int # Number of horsemen in the unit
 
-    def __init__(self, commander, horse, nickname=""):
-        super().__init__(commander, UnitType.Cavalry, nickname)
+    def __init__(self, commander, faction, horse, nickname=""):
+        super().__init__(commander, UnitType.Cavalry, faction, nickname)
         self.horse = horse
         self.unitType = UnitType.Cavalry
         self.movementSpeed = CavalryMovementSpeed.Halt
@@ -239,7 +244,7 @@ class CavalryUnit(Unit):
         return self.horse
 
     def inRange(self, target: Unit) -> bool:
-        return self.distanceTo(target) <= constants.PISTOL_RANGE
+        return self.distanceTo(target) <= PISTOL_RANGE
 
 
 class Order:

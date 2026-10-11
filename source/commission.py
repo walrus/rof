@@ -4,6 +4,7 @@ from enum import Enum, IntEnum
 from random import randint, sample, shuffle
 
 from source.cards import Card, Rank, draw, drawSingle
+from source.constants import Faction
 
 forenames = {
     "salts": # Salts of the Earth 
@@ -39,11 +40,6 @@ estates = [
     "Sherborne",
     "Heckfield",
 ]
-
-class Faction(Enum):
-    Royalist = 0
-    Parliamentarian = 1
-    # Maybe I'll add the Scots later...
 
 class Title(IntEnum):
     Commoner = 0
@@ -139,7 +135,7 @@ class Colonel:
         
     def generateTraits(self, num: int) -> list[Trait]:
         """ Generate N suitable traits for this Colonel """
-        indices = sample(range(0, 4), num)
+        indices = sample(range(4), num)
         traits = []
         for index in indices:
             # Indices are in mutually incompatible pairs; randomly select one of them
@@ -195,7 +191,7 @@ class Colonel:
                 continue
             # Otherwise look through the whole list in random order and pick the first which
             # for which we satisfy the prerequisites and which we don't already have
-            positionIndices = [i for i in range(0, len(Position))]
+            positionIndices = [i for i in range(len(Position))]
             shuffle(positionIndices)
             for positionIndex in positionIndices:
                 pos = Position(positionIndex)
@@ -289,7 +285,7 @@ def generateColonel(faction: Faction) -> Colonel:
         surnameTable = "parliamentarians"
 
     col.forename = forenames[forenameTable][randint(0,9)]
-    col.surname = surnames[forenameTable][randint(0,9)]
+    col.surname = surnames[surnameTable][randint(0,9)]
 
     # Now work out status, grip etc
     col.status = 3 + col.title # Title confers status!

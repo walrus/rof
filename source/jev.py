@@ -7,18 +7,21 @@ from source.cards import Card
 from source.units import Order, Unit
 
 
-def unitStateToJson(unit: Unit) -> str:
-    """ Turn Unit state into something Jev can understand """
+def unitStateToDict(unit: Unit) -> dict[str, str]:
+    """ Write current Unit state to a dict for adding further info"""
     state = {}
     state['name'] = unit.name()
-    state['currentOrder'] = unit.currentOrder
+    state['currentOrder'] = unit.currentOrder.name if unit.currentOrder else 'None'
     state['morale'] = str(unit.morale)
     state['fighting'] = str(unit.fighting)
     state['shooting'] = str(unit.shooting)
     state['disorder'] = str(unit.disorder)
     state['strength'] = str(unit.strength())
+    return state
 
-    return dumps(state)
+def unitStateToJson(unit: Unit) -> str:
+    """ Turn Unit state into something Jev can understand """
+    return dumps(unitStateToDict(unit))
 
 
 def chooseActivationCard(cards : list[Card]) -> Card:
@@ -74,7 +77,7 @@ def chooseCardToDiscard(cards : list[Card]) -> Card:
     print(f"Something went wrong discarding; defaulting to {cards[0]}")
     return cards[0]
 
-def chooseOrder(unit : Unit, orders : dict[str, Order], cardCombos: list[tuple[int, list[Card]]]) -> tuple[Order | None, list[Card]]:
+def chooseOrder(unit : Unit, enemies : list[Unit], orders : dict[str, Order], cardCombos: list[tuple[int, list[Card]]]) -> tuple[Order | None, list[Card]]:
     """ Ask Jev to choose an order to give and the cards to discard in order to play it
         Makes two calls to the Jev API so that we can ensure the cards are actually capable of playing the Order"""
 
@@ -105,16 +108,26 @@ def chooseOrder(unit : Unit, orders : dict[str, Order], cardCombos: list[tuple[i
 
     unitState = unitStateToJson(unit)
 
+    enemyState = {}
+    for enemy in enemies:
+        enemyDict = unitStateToDict(enemy)
+        
+        enemyDict['distance'] = str(unit.distanceTo(enemy))
+        enemyDict['isInRange'] = str(unit.inRange(enemy))
+
+        enemyState[enemy.name()] = dumps(enemyDict)
+
     orderToReturn = None
     cardChoiceToReturn = []
 
     with TypeSafeClient() as client:
         response = client.system_one(
             state={"document": "I'm playing a game in which I have a hand of cards, and right now I need to pick a combination of cards to play an Order. "
-            "I need to decide on an Order to play, taking into account `unitState`, but I should try not to waste good cards."
+            "I need to decide on an Order to play, taking into account `unitState` and `enemyState`, but I should try not to waste good cards."
             "Higher cards are better, and having multiple cards of the same suit is even better (as long as their values sum to more than 10) "
             "Aces are worth 1, number cards are worth their number, and other face cards are worth 10",
             "unitState": unitState,
+            "enemyState": enemyState
             },
             questions={
                 "order": Choice(

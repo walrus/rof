@@ -1,13 +1,16 @@
 from source.players import Player
+from source.units import Unit
 
 """ Wrap the various objects up into a game """
 
 
 class Game:
-    players = list[Player]
+    players: list[Player]
+    units: list[Unit]
 
     def __init__(self, players):
         self.players = players
+        self.units = [player.unit for player in players]
         #TODO: more setup?
 
     def play_turn(self):
@@ -26,7 +29,8 @@ class Game:
         # Activation phase
         for card, player in activation_cards:
             print(f"Activation: {player.name} with a {card!s}")
-            order = player.chooseOrder()
+            enemyUnits = [unit for unit in self.units if unit.isEnemy(player.faction)]
+            order = player.chooseOrder(enemyUnits)
             print(f"Order: {player.unit.name()} is ordered to {order.name if order else "do nothing"}")
             player.unit.carryOut(order)
 

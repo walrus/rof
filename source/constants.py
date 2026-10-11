@@ -1,4 +1,5 @@
 """ Constants to fiddle with """
+from enum import Enum
 
 # If you have more than N cards, take the best N
 # Means that more cards is good but preserves E.G distance dynamics for shooting
@@ -15,3 +16,9 @@ DEFAULT_STEADINESS = 10
 PISTOL_RANGE = 15
 MUSKET_RANGE = 30
 CANNON_RANGE = 60
+
+
+class Faction(Enum):
+    Royalist = 0
+    Parliamentarian = 1
+    # Maybe I'll add the Scots later...

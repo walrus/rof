@@ -2,18 +2,21 @@
 
 from source.cards import Card, combinations, draw, highestCombination, sumCards
 from source.commission import Colonel
+from source.constants import Faction
 from source.jev import chooseActivationCard, chooseCardToDiscard, chooseOrder
 from source.units import Order, Unit, basicOrders
 
 
 class Player:
     name: str
+    faction: Faction
     unit: Unit
     colonel: Colonel
     hand: list[Card]
 
-    def __init__(self, name, colonel, unit):
+    def __init__(self, name, faction, colonel, unit):
         self.name = name
+        self.faction = faction
         self.colonel = colonel
         self.unit = unit
         self.hand = draw(colonel.grip, colonel.grip)
@@ -47,7 +50,7 @@ class Player:
         highestCardCombo = highestCombination(self.hand)
         return {order.name: order for order in basicOrders if order.isPossible(highestCardCombo, self.unit)}
 
-    def chooseOrder(self) -> Order | None:
+    def chooseOrder(self, enemies: list[Unit]) -> Order | None:
         """ Pick an order to give """
         options = self.orderOptions()
 
@@ -57,7 +60,7 @@ class Player:
 
         cardCombos = combinations(self.hand)
 
-        chosenOrder, chosenCards = chooseOrder(self.unit, options, cardCombos)
+        chosenOrder, chosenCards = chooseOrder(self.unit, enemies, options, cardCombos)
 
         print(f"Playing order {chosenOrder.name if chosenOrder else 'None'} with {' '.join(str(card) for card in chosenCards) if chosenCards else 'no cards'}")
 
