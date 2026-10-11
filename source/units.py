@@ -138,6 +138,7 @@ class Unit:
             # TODO: Things like Halt should clear for neatness, but will have essentially the same effect 
             # if they get enacted every turn so low priority
             if self.currentOrder:
+                print(f"{self.name()} continues to {self.order.name}")
                 self.carryOut(self.currentOrder)
             return
 
@@ -195,7 +196,16 @@ class Unit:
         self.shooting = False
 
     def rally(self) -> None:
-        pass
+        """ Attempt to rally a Panicked unit back to Wavering, or a Wavering unit back to OK"""
+        if not self.moraleCheck():
+            return
+
+        if self.morale == MoraleState.Wavering:
+            print(f"{self.name()} is rallied to OK again")
+            self.morale = MoraleState.OK
+        else:
+            print(f"{self.name()} is rallied back to Wavering")
+            self.morale = MoraleState.Wavering
 
     def encourage(self, cardsUsed: list[Card]) -> None:
         totalDisorderRemoved = sum(2 if card.rank() >= Rank.Jack else 1 for card in cardsUsed)
@@ -205,23 +215,28 @@ class Unit:
     def charge(self, target: "Unit") -> None:
         pass
 
-    def panicTest(self) -> bool:
-        # If you're already panicked then you fail additional panic tests
-        if self.morale == MoraleState.Panicked:
-            return False
-        
+    def moraleCheck(self) -> bool:
         if self.commander:
             panicCards = draw(2, 2)
         else:
             panicCards = draw(3, 2, False)
 
-        # Panic test always passed on two Kings, and always failed on two Aces
-        if allKings(panicCards) or not (allAces(panicCards) and sumCards(panicCards) >= self.disorder):
+        # Morale tests always passed on two Kings, and always failed on two Aces
+        return allKings(panicCards) or not (allAces(panicCards) and sumCards(panicCards) >= self.disorder)
+
+    def panicTest(self) -> bool:
+        # If you're already panicked then you fail additional panic tests
+        if self.morale == MoraleState.Panicked:
+            return False
+
+        if self.moraleCheck():
             return True
 
         if self.morale == MoraleState.Wavering:
+            print(f"{self.name()} is panicked!")
             self.morale = MoraleState.Panicked
         else:
+            print(f"{self.name()} is wavering!")
             self.morale = MoraleState.Wavering
 
         return False
