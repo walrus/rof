@@ -184,13 +184,16 @@ class Unit:
     def halt(self) -> None:
         self.currentMovementSpeed = MovementSpeed.Halt
 
-    def move(self, direction: tuple[int, int], speed: MovementSpeed) -> None:
-        if speed in [MovementSpeed.Run, MovementSpeed.Gallop]:
-            self.disorder = self.disorder + 1
-
+    def move(self, direction: tuple[int, int], speed: MovementSpeed, stopAtDestination=False) -> None:
         cardsDrawn = cardDrawFromMovementSpeed(speed)
         distance = sumCards(cardsDrawn)
 
+        if speed == MovementSpeed.Run or speed == MovementSpeed.Gallop:
+            self.disorder = self.disorder + 1
+            #TODO: implement Dash for cavalry
+            #if numAboveThreshold(cardsDrawn, self.dash):
+            #    self.blown = True
+        
         moveVector = ()
         # Handle moves along an axis:
         if direction[0] == 0:
@@ -204,12 +207,21 @@ class Unit:
             distY = sin(angle) * distance
             moveVector = (distX, distY)
 
+        if stopAtDestination:
+            moveVector = (max(moveVector[0], direction[0]), max(moveVector[1], direction[1]))
+
         print(f"Moving: {moveVector[0]},{moveVector[1]}")
-        #TODO: check move vector doesn't take us anywhere we don't want to be
         self.position = (self.position[0] + round(moveVector[0]), self.position[1] + round(moveVector[1]))
         print(f"New position {self.position[0]},{self.position[1]}")
 
     def charge(self, target: "Unit") -> None:
+        speed = MovementSpeed.Gallop if self.unitType == UnitType.Cavalry else MovementSpeed.Run
+        self.move(self.directionOf(target), speed, True)
+
+        if self.distanceTo(target) < 1:
+            self.fight(target)
+    
+    def fight(self, target: "Unit") -> None:
         pass
 
     def shootAt(self, target: "Unit") -> None:
