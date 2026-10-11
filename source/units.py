@@ -1,6 +1,6 @@
 from collections.abc import Callable
 from enum import Enum
-from math import ceil, sqrt
+from math import ceil, sqrt, atan, degrees, sin, cos
 
 from source.cards import (
     Card,
@@ -51,6 +51,21 @@ def moveSpeedFromOrder(string : str, unitType: UnitType) -> MovementSpeed:
         return MovementSpeed.Gallop if unitType == UnitType.Cavalry else MovementSpeed.Run
 
     return MovementSpeed[string]
+
+def cardDrawFromMovementSpeed(speed : MovementSpeed) -> list[Card]:
+    match speed:
+        case MovementSpeed.Halt:
+            return []
+        case MovementSpeed.Slow:
+            return draw(2, 1, False) # 2 cards, keep lowest
+        case MovementSpeed.Walk:
+            return draw(1, 1)
+        case MovementSpeed.Run | MovementSpeed.Trot:
+            return draw(2, 1) # 2 cards, keep highest
+        case MovementSpeed.Gallop:
+            return draw(2, 2)
+        case _:
+            return []
 
 """ Base class for all Units """
 class Unit:
@@ -138,7 +153,7 @@ class Unit:
             # TODO: Things like Halt should clear for neatness, but will have essentially the same effect 
             # if they get enacted every turn so low priority
             if self.currentOrder:
-                print(f"{self.name()} continues to {self.order.name}")
+                print(f"{self.name()} continues to {self.currentOrder.name}")
                 self.carryOut(self.currentOrder)
             return
 
@@ -169,7 +184,32 @@ class Unit:
     def halt(self) -> None:
         self.currentMovementSpeed = MovementSpeed.Halt
 
-    def move(self, direction: tuple[int, int], speed) -> None:
+    def move(self, direction: tuple[int, int], speed: MovementSpeed) -> None:
+        if speed in [MovementSpeed.Run, MovementSpeed.Gallop]:
+            self.disorder = self.disorder + 1
+
+        cardsDrawn = cardDrawFromMovementSpeed(speed)
+        distance = sumCards(cardsDrawn)
+
+        moveVector = ()
+        # Handle moves along an axis:
+        if direction[0] == 0:
+            moveVector = (0, distance)
+        elif direction[1] == 0:
+            moveVector = (distance, 0)
+        else:
+            # Transform cartesian distance moved into x,y, rounding to the nearest int
+            angle = atan(direction[0] / direction[1])
+            distX = cos(angle) * distance
+            distY = sin(angle) * distance
+            moveVector = (distX, distY)
+
+        print(f"Moving: {moveVector[0]},{moveVector[1]}")
+        #TODO: check move vector doesn't take us anywhere we don't want to be
+        self.position = (self.position[0] + round(moveVector[0]), self.position[1] + round(moveVector[1]))
+        print(f"New position {self.position[0]},{self.position[1]}")
+
+    def charge(self, target: "Unit") -> None:
         pass
 
     def shootAt(self, target: "Unit") -> None:
@@ -211,9 +251,6 @@ class Unit:
         totalDisorderRemoved = sum(2 if card.rank() >= Rank.Jack else 1 for card in cardsUsed)
         print(f"{self.name()} removed {totalDisorderRemoved} disorder by encouragement")
         self.disorder = max(0, self.disorder - totalDisorderRemoved)
-
-    def charge(self, target: "Unit") -> None:
-        pass
 
     def moraleCheck(self) -> bool:
         if self.commander:
