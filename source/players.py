@@ -85,5 +85,6 @@ class Player:
         elif chosenOrder.name in ['Flee']:
             directionTo = self.unit.directionOf(enemies[0])
             chosenOrder.direction = (directionTo[0] * -1, directionTo[1] * -1)
-        
+        elif chosenOrder.name in ['Encourage']:
+            chosenOrder.cardsUsed = chosenCards
         return chosenOrder

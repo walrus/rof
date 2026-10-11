@@ -141,7 +141,9 @@ class Unit:
                 self.carryOut(self.currentOrder)
             return
 
-        self.currentOrder = order
+        # E.G don't stop firing just because of encouragement
+        if order.name not in ['Encourage']:
+            self.currentOrder = order
 
         match order.name:
             case 'Halt':
@@ -156,7 +158,7 @@ class Unit:
             case 'Rally':
                 self.rally()
             case 'Encourage':
-                self.encourage()
+                self.encourage(order.cardsUsed)
             case 'Charge':
                 self.charge(order.target) # pyright: ignore[reportArgumentType]
             case _:
@@ -195,8 +197,10 @@ class Unit:
     def rally(self) -> None:
         pass
 
-    def encourage(self) -> None:
-        pass
+    def encourage(self, cardsUsed: list[Card]) -> None:
+        totalDisorderRemoved = sum(2 if card.rank() >= Rank.Jack else 1 for card in cardsUsed)
+        print(f"{self.name()} removed {totalDisorderRemoved} disorder by encouragement")
+        self.disorder = max(0, self.disorder - totalDisorderRemoved)
 
     def charge(self, target: "Unit") -> None:
         pass
@@ -324,6 +328,7 @@ class Order:
     prerequisite: Callable | None # Some have special prerequisites; specified by a function which takes a Unit
     target: Unit | None
     direction: tuple[int, int] | None
+    cardsUsed: list[Card]
 
     def __init__(self, name, description, baseDifficulty, addsDisorder = False, prerequisite = None):
         self.name = name
@@ -333,6 +338,7 @@ class Order:
         self.prerequisite = prerequisite
         self.target = None
         self.direction = None
+        self.cardsUsed = []
 
     def currentDifficulty(self, unit: Unit) -> int:
         return self.baseDifficulty + unit.disorder if self.addsDisorder else self.baseDifficulty
@@ -356,8 +362,8 @@ basicOrders = [
     Order("Run", "Move quickly forwards", 5, True, lambda u: u.unitType == UnitType.Infantry),
     Order("Reform", "Move slowly into a new formation", 5, True, None),
     Order("Flee", "Run away!", 5, False, None),
-    Order("Rally", "Stop running away!", 0, False, lambda u: not u.isOK()),
-    Order("Encourage", "Make the troops feel better", 0, False, lambda u: u.disorder > 0),
+    Order("Rally", "Stop running away!", 1, False, lambda u: not u.isOK()),
+    Order("Encourage", "Make the troops feel better", 1, False, lambda u: u.disorder > 0),
     Order("Charge", "Move quickly towards the enemy", 5, True, lambda u: u.isOK()),
     Order("Trot", "Cavalry move fairly quickly forwards", 5, True, lambda u:u.unitType == UnitType.Cavalry),
     Order("Gallop", "Cavalry move quickly forwards", 5, True, lambda u: u.unitType == UnitType.Cavalry and u.currentMovementSpeed == MovementSpeed.Trot),

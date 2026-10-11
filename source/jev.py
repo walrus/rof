@@ -127,6 +127,7 @@ def chooseOrder(unit : Unit, enemies : list[Unit], orders : dict[str, Order], ca
             "based on both the unit's current state (`unitState`) and the state of any nearby enemies `enemyState`"
             "Broadly, the priority is to Rally the unit if it's Wavering or Panicked, fire on the enemy if in range and the unit isn't already firing, "
             "or Run/Move towards them if not in range. If the enemy unit is closer than 10 and they're wavering, we should Charge."
+            "If the current Order matches what we would otherwise prioritise, consider `Encourage` if we have any Disorder or `Nothing`"
             "Cavalry units (`unitType` Cavalry) should prioritise charging the enemy",
             "unitState": unitState,
             "enemyState": enemyState
@@ -154,11 +155,13 @@ def chooseOrder(unit : Unit, enemies : list[Unit], orders : dict[str, Order], ca
             "Higher cards are better, and having multiple cards of the same suit is even better (as long as their values sum to more than 10) "
             "Aces are worth 1, number cards are worth their number, and other face cards are worth 10",
             "orderDifficulty": str(orderToReturn.currentDifficulty(unit)),
+            "unitState": unitState
             },
             questions={
                 "cards": Choice(
                     instructions="Which cards should I use to play the Order? " \
-                    "Try to play the combination of cards with the lowest possible Value which meets or exceeds `orderDifficulty`" \
+                    "Try to play the combination of cards with the lowest possible Value which meets or exceeds `orderDifficulty`," \
+                    "except when the order is 'Encourage' - in which case if we have lots of `disorder` then play multiple cards if possible" \
                     "If `orderDifficulty` is 0, then play no cards (the empty list)",
                     criteria=cardOptions,
                 ),
