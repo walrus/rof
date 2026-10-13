@@ -14,6 +14,7 @@ from source.cards import (
     sumCards,
 )
 from source.constants import (
+    AUTO_PANIC_THRESHOLD,
     BEST_OF_FIGHTING,
     BEST_OF_SHOOTING,
     MIN_FIGHTING_THRESHOLD,
@@ -21,9 +22,9 @@ from source.constants import (
     MUSKET_RANGE,
     PANIC_THRESHOLD,
     PISTOL_RANGE,
-    Faction,
     SINGLE_CARD_CHARGE_MAX,
-    TWO_CARD_CHARGE_MAX
+    TWO_CARD_CHARGE_MAX,
+    Faction,
 )
 
 """ Represents individual units on the tabletop """
@@ -233,6 +234,7 @@ class Unit:
         # Before you charge, have to check to see if your men baulk, or theirs flee
         if not self.panicTest():
             print(f"{self.name()} baulks and fails to charge {target.name()}")
+            self.morale = MoraleState.Wavering
             return
 
         target.panicTest()
@@ -290,23 +292,24 @@ class Unit:
 
         print(f"{winner.name()} wins this round!")
 
-        # If both sides are still around, then they're both fighting
+        # Take panic tests - a failed test here results in a Panic not just Wavering
+        # If both sides are still around, then they're both fighting (TODO: except Cavalry!)
         #TODO implement pursuit as an Order type?
-        if loser.panicTest() or loser.wavering:
-            if winner.panicTest() or winner.wavering:
-                self.fighting = True
-                target.fighting = True
-                print("Both sides stay in the fight for another round")
-            else:
-                # Winner ran away! # TODO: this won't work if fighting units end up right on top of each other
-                winner.flee(loser.directionOf(winner))
-                loser.fighting = False
-                print(f"{winner.name()} runs away despite winning!")
-        else:
-            # Loser ran away
+        if not loser.panicTest():
+            # Loser runs away
             loser.flee(winner.directionOf(loser))
             winner.fighting = False
             print(f"{loser.name()} runs away after losing!")
+        elif not winner.panicTest():
+            # Winner ran away! # TODO: this won't work if fighting units end up right on top of each other
+            winner.flee(loser.directionOf(winner))
+            loser.fighting = False
+            print(f"{winner.name()} runs away despite winning!")
+        else:
+            self.fighting = True
+            target.fighting = True
+            print("Both sides stay in the fight for another round")
+
 
     def flee(self, direction: tuple[int, int]) -> None:
         speed = MovementSpeed.Run
@@ -321,11 +324,11 @@ class Unit:
     
         casualties = sumCards(cards) // distance
         enemyDisorder = casualties + numAboveThreshold(cards, target.steadiness)
-        enemyPanic = enemyDisorder >= PANIC_THRESHOLD
 
         print(f"{target.name()} takes {casualties} casualties and {enemyDisorder} disorder")
         target.takeCasualties(casualties)
         target.disorder = target.disorder + enemyDisorder
+        enemyPanic = enemyDisorder >= PANIC_THRESHOLD or target.disorder >= AUTO_PANIC_THRESHOLD
         if enemyPanic:
             target.panicTest() # We don't need to know if they panicked
         
@@ -356,15 +359,16 @@ class Unit:
         self.disorder = max(0, self.disorder - totalDisorderRemoved)
 
     def moraleCheck(self) -> bool:
+        # True if passed, false otherwise
         if self.commander:
             panicCards = draw(2, 2)
         else:
             panicCards = draw(3, 2, False)
 
         # Morale tests always passed on two Kings, and always failed on two Aces
-        return allKings(panicCards) or not (allAces(panicCards) and sumCards(panicCards) >= self.disorder)
+        return allKings(panicCards) or (not allAces(panicCards) and sumCards(panicCards) >= self.disorder)
 
-    def panicTest(self) -> bool:
+    def panicTest(self, immediatelyPanic: bool = False) -> bool:
         # If you're already panicked then you fail additional panic tests (but you only disperse if charged)
         if self.morale == MoraleState.Panicked:
             return False
@@ -372,7 +376,7 @@ class Unit:
         if self.moraleCheck():
             return True
 
-        if self.morale == MoraleState.Wavering:
+        if immediatelyPanic or self.morale == MoraleState.Wavering:
             print(f"{self.name()} is panicked!")
             self.morale = MoraleState.Panicked
         else:

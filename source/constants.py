@@ -10,6 +10,10 @@ BEST_OF_FIGHTING = 4
 # 3 is nice because then it's possible, albeit unlikely, in normal shooting
 PANIC_THRESHOLD = 3
 
+# Threshold at which you will need to panic test for every single Disorder gained
+# Trialling this at 21 (at which point you can only pass on two Kings anyway)
+AUTO_PANIC_THRESHOLD = 21
+
 # What's a good default steadiness? Jack?
 DEFAULT_STEADINESS = 10
 
