@@ -330,6 +330,7 @@ class Unit:
         self.move(direction, speed)
 
     def shootAt(self, target: "Unit") -> None:
+        self.shooting = True
         distance = max(MIN_SHOOTING_DISTANCE, (self.distanceTo(target) * self.shootingDistanceMultiplier))
         cards = draw(self.firepower, BEST_OF_SHOOTING)
     
@@ -431,6 +432,7 @@ class InfantryUnit(Unit):
         return self.distanceTo(target) <= SINGLE_CARD_CHARGE_MAX
 
     def chooseDieToLose(self) -> bool:
+        # Default implementation, usually overridden by Player
         # True for Firepower; False for ferocity. Prefer to lose Ferocity
         return self.ferocity <= self.firepower
         
@@ -454,6 +456,7 @@ class CavalryUnit(Unit):
         return distance <= SINGLE_CARD_CHARGE_MAX if self.blown else distance <= TWO_CARD_CHARGE_MAX
 
     def chooseDieToLose(self) -> bool:
+        # Default implementation, usually overridden by Player
         # True for Firepower; False for ferocity. Prefer to lose Firepower
         return self.firepower > 0
 

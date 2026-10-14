@@ -1,10 +1,18 @@
 """Represents the actual people playing the game"""
 
+from typing import Any
+
 from source.cards import Card, combinations, draw, highestCombination, sumCards
 from source.commission import Colonel
 from source.constants import Faction
-from source.jev import chooseActivationCard, chooseCardToDiscard, chooseOrder
+from source.jev import (
+    chooseActivationCard,
+    chooseCardToDiscard,
+    chooseDieToLose,
+    chooseOrder,
+)
 from source.units import Order, Unit, basicOrders
+
 
 #TODO: proper abstract class etc
 class Player:
@@ -39,7 +47,7 @@ class Player:
             #print(f"{self.name} chooses to discard a {cardChoice!s}")
             self.hand.remove(cardChoice)
 
-    def orderOptions(self, enemies: list[Unit]) -> dict[str, Order]:
+    def orderOptions(self, enemies: list[Unit]) -> dict[str, Order | None]:
         """ Get all possible Orders, ruling out any that no combination of cards in hand can play"""
         highestCardCombo = highestCombination(self.hand)
         return {order.name: order for order in basicOrders if order.isPossible(highestCardCombo, self.unit, enemies)}
@@ -57,7 +65,88 @@ class Player:
             return False
 
 class HumanPlayer(Player):
-    pass
+    # Passes information to the terminal and waits for input to make decisions
+    # TODO default that is accepted if you just hit enter
+    def _selectFromOptions(self, options: dict[str, Any]) -> str:
+        # Print a list of options and return the index a player selects
+        # Enforces a selection from within the list
+        for key, option in options.items():
+            print(f"{key}: {option!s}")
+
+        tries = 0
+        while tries < 10:
+            choice = input()
+            if choice in options:
+                return choice
+            else:
+                print(f"Choice {choice} is not a valid options try again")
+
+            tries = tries + 1
+        return ''
+    
+    def chooseActivationCard(self) -> Card:
+        print(f"{self.name}, pick a card to activate with: ")
+        handOptions = {str(i): self.hand[i] for i in range(len(self.hand))}
+        cardChoice = handOptions[self._selectFromOptions(handOptions)]
+        self.hand.remove(cardChoice)
+        return cardChoice
+
+    def chooseOrder(self, enemies: list[Unit]) -> Order | None:
+        # Choose an order, then the combination of cards to play it with
+        options : dict[str, Order | None ] = self.orderOptions(enemies)
+        
+        if not options:
+            print("No options available!")
+            return None
+
+        print(f"{self.name}, choose an order to play (your available hand is {' '.join(str(card) for card in self.hand)})")
+        options['Nothing'] = None
+        #TODO: pretty ew as well
+        optionStrings = {key: option.description if option else "Let the unit continue as is" for key, option in options.items()}
+        chosenOrder = options[self._selectFromOptions(optionStrings)]
+
+        if not chosenOrder:
+            print("Doing nothing; no cards need be played")
+            return None
+
+        cardCombos = combinations(self.hand)
+        requiredDifficulty = chosenOrder.currentDifficulty(self.unit)
+
+        usefulCombos = [combo for combo in cardCombos if combo[0] >= requiredDifficulty]
+        comboOptions = {str(i): f"{' '.join(str(card) for card in combo[1])} ({combo[0]} total)" for i, combo in enumerate(usefulCombos)}
+        print(f"Choose some cards to play your Order with (required difficulty {requiredDifficulty})")
+        comboChoice = self._selectFromOptions(comboOptions)
+
+        #TODO: ew
+        chosenCards = usefulCombos[int(comboChoice)][1]
+        for card in chosenCards:
+            self.hand.remove(card)
+
+        # Fill out details of the Order now we know the cards used
+        # TODO: work on target choice; for now always pick the sole enemy
+        if chosenOrder.name in ['Fire', 'Charge']:
+            chosenOrder.target = enemies[0]
+        elif chosenOrder.name in ['Walk', 'Run', 'Trot', 'Gallop']:
+            chosenOrder.direction = self.unit.directionOf(enemies[0])
+        elif chosenOrder.name in ['Flee']:
+            directionTo = self.unit.directionOf(enemies[0])
+            chosenOrder.direction = (directionTo[0] * -1, directionTo[1] * -1)
+        elif chosenOrder.name in ['Encourage']:
+            chosenOrder.cardsUsed = chosenCards
+
+        return chosenOrder
+
+    def chooseDieToDiscard(self, unit: Unit) -> bool:
+        print(f"{self.name}, pick a die to discard. ")
+        print(f"{self.unit.name()} currently has {self.unit.firepower} Firepower and {self.unit.ferocity} Ferocity")
+
+        dieOptions = {
+            '0': 'Firepower',
+            '1': 'Ferocity'
+        }
+        dieChoice = self._selectFromOptions(dieOptions)
+
+        return dieChoice == '0'
 
 class AIPlayer(Player):
     # Uses Jev to make decisions instead of asking about them
@@ -109,4 +198,4 @@ class AIPlayer(Player):
 
     def chooseDieToDiscard(self, unit: Unit) -> bool:
         # True for Firepower; false for ferocity
-        return False
+        return chooseDieToLose(unit)

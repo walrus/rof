@@ -80,7 +80,7 @@ def chooseCardToDiscard(cards : list[Card]) -> Card:
     print(f"Something went wrong discarding; defaulting to {cards[0]}")
     return cards[0]
 
-def chooseOrder(unit : Unit, enemies : list[Unit], orders : dict[str, Order], cardCombos: list[tuple[int, list[Card]]]) -> tuple[Order | None, list[Card]]:
+def chooseOrder(unit : Unit, enemies : list[Unit], orders : dict[str, Order | None], cardCombos: list[tuple[int, list[Card]]]) -> tuple[Order | None, list[Card]]:
     """ Ask Jev to choose an order to give and the cards to discard in order to play it
         Makes two calls to the Jev API so that we can ensure the cards are actually capable of playing the Order"""
 
@@ -104,8 +104,8 @@ def chooseOrder(unit : Unit, enemies : list[Unit], orders : dict[str, Order], ca
 
     for name, order in orders.items():
         orderDict = {
-            'description': order.description,
-            'difficulty': str(order.currentDifficulty(unit))
+            'description': order.description if order else "None",
+            'difficulty': str(order.currentDifficulty(unit) if order else 0)
         }
         orderOptions[name] = dumps(orderDict)
 
