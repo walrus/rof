@@ -1,6 +1,9 @@
+import logging
 from collections.abc import Callable
 from enum import Enum
 from math import atan, ceil, cos, sin, sqrt
+
+logger = logging.getLogger(__name__)
 
 from source.cards import (
     Card,
@@ -177,7 +180,7 @@ class Unit:
             # TODO: Things like Halt should clear for neatness, but will have essentially the same effect 
             # if they get enacted every turn so low priority
             if self.currentOrder:
-                #print(f"{self.name()} continues to {self.currentOrder.name}")
+                logger.warning(f"{self.name()} continues to {self.currentOrder.name}")
                 self.carryOut(self.currentOrder)
             return
 
@@ -204,7 +207,7 @@ class Unit:
             case 'Charge':
                 self.charge(order.target) # pyright: ignore[reportArgumentType]
             case _:
-                print(f"Unknown Order given: {order.name}")
+                logger.error(f"Unknown Order given: {order.name}")
         return
 
     def halt(self) -> None:
@@ -237,21 +240,21 @@ class Unit:
         if stopAtDestination:
             moveVector = (max(moveVector[0], direction[0]), max(moveVector[1], direction[1]))
 
-        #print(f"Moving: {moveVector[0]},{moveVector[1]}")
+        logger.info(f"Moving: {moveVector[0]},{moveVector[1]}")
         self.position = (self.position[0] + round(moveVector[0]), self.position[1] + round(moveVector[1]))
-        #print(f"New position {self.position[0]},{self.position[1]}")
+        logger.info(f"New position {self.position[0]},{self.position[1]}")
 
     def charge(self, target: "Unit") -> None:
         # Before you charge, have to check to see if your men baulk, or theirs flee
         if not self.panicTest():
-            #print(f"{self.name()} baulks and fails to charge {target.name()}")
+            logger.warning(f"{self.name()} baulks and fails to charge {target.name()}")
             self.morale = MoraleState.Wavering
             return
 
         target.panicTest()
         if target.panicked():
             # If the target Panics (not just Wavers) then a combat _probably_ won't happen
-            #print(f"{target.name()} runs rather than stand and fight {self.name()}")
+            logger.warning(f"{target.name()} runs rather than stand and fight {self.name()}")
             target.flee(self.directionOf(target))
     
         speed = MovementSpeed.Gallop if self.unitType == UnitType.Cavalry else MovementSpeed.Run
@@ -260,10 +263,10 @@ class Unit:
         if self.distanceTo(target) < 1:
             # caught them! If they're fleeing, then they're dispersed
             if target.panicked():
-                #print(f"{self.name()} disperses {target.name()}")
+                logger.warning(f"{self.name()} disperses {target.name()}")
                 target.disperse()
             else:
-                #print(f"{self.name()} charges {target.name()}")
+                logger.warning(f"{self.name()} charges {target.name()}")
                 self.fight(target)
     
     def fight(self, target: "Unit") -> None:
@@ -288,11 +291,11 @@ class Unit:
         # Now apply the effects
         target.takeCasualties(enemyCasualties)
         target.disorder = target.disorder + enemyDisorder
-        #print(f"{target.name()} takes {enemyCasualties} casualties and {enemyDisorder} disorder")
+        logger.info(f"{target.name()} takes {enemyCasualties} casualties and {enemyDisorder} disorder")
 
         self.takeCasualties(friendlyCasualties)
         self.disorder = self.disorder + friendlyDisorder
-        #print(f"{self.name()} takes {friendlyCasualties} casualties and {friendlyDisorder} disorder")
+        logger.info(f"{self.name()} takes {friendlyCasualties} casualties and {friendlyDisorder} disorder")
 
         # Finally, trigger panic tests first for the loser and then (if they don't run) the winner
         loser = target
@@ -301,7 +304,7 @@ class Unit:
             loser = self
             winner = target
 
-        #print(f"{winner.name()} wins this round!")
+        logger.info(f"{winner.name()} wins this round!")
 
         # Take panic tests - a failed test here results in a Panic not just Wavering
         # If both sides are still around, then they're both fighting (TODO: except Cavalry!)
@@ -310,16 +313,16 @@ class Unit:
             # Loser runs away
             loser.flee(winner.directionOf(loser))
             winner.fighting = False
-            #print(f"{loser.name()} runs away after losing!")
+            logger.warning(f"{loser.name()} runs away after losing combat!")
         elif not winner.panicTest():
             # Winner ran away! # TODO: this won't work if fighting units end up right on top of each other
             winner.flee(loser.directionOf(winner))
             loser.fighting = False
-            #print(f"{winner.name()} runs away despite winning!")
+            logger.warning(f"{winner.name()} runs away despite winning combat!")
         else:
             self.fighting = True
             target.fighting = True
-            #print("Both sides stay in the fight for another round")
+            logger.info("Both sides stay in the fight for another round")
 
 
     def flee(self, direction: tuple[int, int]) -> None:
@@ -337,7 +340,7 @@ class Unit:
         casualties = sumCards(cards) // distance
         enemyDisorder = casualties + numAboveThreshold(cards, target.steadiness)
 
-        #print(f"{target.name()} takes {casualties} casualties and {enemyDisorder} disorder")
+        logger.info(f"{target.name()} takes {casualties} casualties and {enemyDisorder} disorder")
         target.takeCasualties(casualties)
         target.disorder = target.disorder + enemyDisorder
         enemyPanic = enemyDisorder >= PANIC_THRESHOLD or target.disorder >= AUTO_PANIC_THRESHOLD
@@ -359,15 +362,15 @@ class Unit:
             return
 
         if self.morale == MoraleState.Wavering:
-            #print(f"{self.name()} is rallied to OK again")
+            logger.warning(f"{self.name()} is rallied to OK again")
             self.morale = MoraleState.OK
         else:
-            print(f"{self.name()} is rallied back to Wavering")
+            logger.warning(f"{self.name()} is rallied back to Wavering")
             self.morale = MoraleState.Wavering
 
     def encourage(self, cardsUsed: list[Card]) -> None:
         totalDisorderRemoved = sum(2 if card.rank() >= Rank.Jack else 1 for card in cardsUsed)
-        #print(f"{self.name()} removed {totalDisorderRemoved} disorder by encouragement")
+        logger.info(f"{self.name()} removed {totalDisorderRemoved} disorder by encouragement")
         self.disorder = max(0, self.disorder - totalDisorderRemoved)
 
     def moraleCheck(self) -> bool:
@@ -389,10 +392,10 @@ class Unit:
             return True
 
         if immediatelyPanic or self.morale == MoraleState.Wavering:
-            print(f"{self.name()} is panicked!")
+            logger.warning(f"{self.name()} is panicked!")
             self.morale = MoraleState.Panicked
         else:
-            print(f"{self.name()} is wavering!")
+            logger.warning(f"{self.name()} is wavering!")
             self.morale = MoraleState.Wavering
 
         return False

@@ -6,14 +6,12 @@ from source.game import Game
 from source.players import AIPlayer
 from source.units import InfantryUnit
 
+# Only log big events for this demo
+logging.basicConfig(level=logging.ERROR, format="%(message)s")
 logger = logging.getLogger(__name__)
 
 if __name__ == "__main__":
     # Play with two evenly matched units until someone runs away...again and again
-
-    # Only log big events
-    logging.basicConfig(level=logging.ERROR)
-
     numGames = 100
     maxGameLength = 30
 
@@ -22,11 +20,11 @@ if __name__ == "__main__":
     draws = 0
 
     turnsTaken = {}
-    for i in range(1,maxGameLength):
+    for i in range(1,maxGameLength + 1):
         turnsTaken[i] = 0
 
     for gameIndex in range(numGames):
-        print(f"Game {gameIndex}")
+        logger.error(f"Game {gameIndex}")
         col1 = generateColonel(Faction.Royalist)
         col1.grip = 4
         royalists = InfantryUnit(col1.shortName(), Faction.Royalist, 3, 3, (0, 50))

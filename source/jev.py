@@ -1,4 +1,5 @@
 """ Calls Jev to make simulated player decisions """
+import logging
 from json import dumps, loads
 
 from typesafe_sdk import Choice, TypeSafeClient
@@ -6,6 +7,7 @@ from typesafe_sdk import Choice, TypeSafeClient
 from source.cards import Card
 from source.units import Order, Unit
 
+logger = logging.getLogger(__name__)
 
 def unitStateToDict(unit: Unit) -> dict[str, str]:
     """ Write current Unit state to a dict for adding further info"""
@@ -25,7 +27,6 @@ def unitStateToDict(unit: Unit) -> dict[str, str]:
 def unitStateToJson(unit: Unit) -> str:
     """ Turn Unit state into something Jev can understand """
     return dumps(unitStateToDict(unit))
-
 
 def chooseActivationCard(cards : list[Card]) -> Card:
     """ Ask Jev to choose a card from hand to use for activation"""
@@ -50,7 +51,7 @@ def chooseActivationCard(cards : list[Card]) -> Card:
             # Otherwise it failed to parse for some reason; fall back to the first card in the list
     
     # Fallback if I've messed up somewhere
-    print(f"Something went wrong choosing an activation card; defaulting to {cards[0]}")
+    logger.info(f"Something went wrong choosing an activation card; defaulting to {cards[0]}")
     return cards[0]
 
 def chooseCardToDiscard(cards : list[Card]) -> Card:
@@ -77,7 +78,7 @@ def chooseCardToDiscard(cards : list[Card]) -> Card:
             # Otherwise it failed to parse for some reason; fall back to the first card in the list
     
     # Fallback if I've messed up somewhere
-    print(f"Something went wrong discarding; defaulting to {cards[0]}")
+    logger.info(f"Something went wrong discarding; defaulting to {cards[0]}")
     return cards[0]
 
 def chooseOrder(unit : Unit, enemies : list[Unit], orders : dict[str, Order | None], cardCombos: list[tuple[int, list[Card]]]) -> tuple[Order | None, list[Card]]:
@@ -176,6 +177,10 @@ def chooseOrder(unit : Unit, enemies : list[Unit], orders : dict[str, Order | No
             cardsFromChoice = loads(cardOptions[cardChoice.choice])['cards'] # pyright: ignore[reportAttributeAccessIssue]
             cardChoiceToReturn = [Card.fromShortString(card) for card in cardsFromChoice]
 
+    # This is a fallback if I've messed up somewhere
+    if not orderToReturn or not cardChoiceToReturn:
+        logger.info("Something went choosing an Order; defaulting to Nothing")
+
     return orderToReturn, cardChoiceToReturn # pyright: ignore[reportReturnType] (fromShortString won't fail)
 
 def chooseDieToLose(unit: Unit) -> bool:
@@ -202,5 +207,7 @@ def chooseDieToLose(unit: Unit) -> bool:
             diceChoice = response.answers["dice"]
             if diceChoice and diceChoice.choice: # pyright: ignore[reportAttributeAccessIssue]
                 return diceChoice.choice == 'Firepower' # pyright: ignore[reportAttributeAccessIssue]
-        
+    
+    # Fallback if I've messed up somewhere
+    logger.info("Something went wrong discarding a die; defaulting to Ferocity")
     return False

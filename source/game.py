@@ -1,8 +1,11 @@
+import logging
+
 from source.players import Player
 from source.units import Unit
 
-""" Wrap the various objects up into a game """
+logger = logging.getLogger(__name__)
 
+""" Wrap the various objects up into a game """
 
 class Game:
     players: list[Player]
@@ -20,7 +23,7 @@ class Game:
         activation_cards = []
         for player in self.players: # type: ignore
             player.drawStep()
-            #print(f"Player {player.name} has hand {' '.join(str(card) for card in player.hand)}")
+            logger.info(f"Player {player.name} has hand {' '.join(str(card) for card in player.hand)}")
             card = player.chooseActivationCard()
             activation_cards.append((card, player))
 
@@ -28,13 +31,12 @@ class Game:
 
         # Activation phase
         for card, player in activation_cards:
-            #print(f"Activation: {player.name} with a {card!s}")
+            logger.warning(f"Activation: {player.name} with a {card!s}")
             enemyUnits = [unit for unit in self.units if unit.isEnemy(player.faction)]
             order = player.chooseOrder(enemyUnits)
-            #print(f"Order: {player.unit.name()} is ordered to {order.name if order else "do nothing"}")
             player.unit.carryOut(order)
-            #print(f"{player.unit.name()} now at {player.unit.position[0]},{player.unit.position[1]}")
-            #print(f"{player.unit.name()} now has {player.unit.disorder} disorder; status {player.unit.morale}")
+            logger.info(f"{player.unit.name()} now at {player.unit.position[0]},{player.unit.position[1]}")
+            logger.info(f"{player.unit.name()} now has {player.unit.disorder} disorder; status {player.unit.morale}")
         # Panic phase
         #TODO: figure out how I'm checking for panic here
         for player in self.players:

@@ -1,5 +1,6 @@
 """Represents the actual people playing the game"""
 
+import logging
 from functools import partial
 from typing import Any
 
@@ -14,6 +15,7 @@ from source.jev import (
 )
 from source.units import Order, Unit, basicOrders
 
+logger = logging.getLogger(__name__)
 
 #TODO: proper abstract class etc
 class Player:
@@ -48,7 +50,7 @@ class Player:
         # but it's possible to E.G lose more than one Grip in a turn
         while len(self.hand) > self.grip:
             cardChoice = chooseCardToDiscard(self.hand)
-            #print(f"{self.name} chooses to discard a {cardChoice!s}")
+            logger.info(f"{self.name} chooses to discard a {cardChoice!s}")
             self.hand.remove(cardChoice)
 
     def orderOptions(self, enemies: list[Unit]) -> dict[str, Order | None]:
@@ -72,7 +74,7 @@ class HumanPlayer(Player):
     # Passes information to the terminal and waits for input to make decisions
     # TODO default that is accepted if you just hit enter
     def _selectFromOptions(self, options: dict[str, Any]) -> str:
-        # Print a list of options and return the index a player selects
+        # print a list of options and return the index a player selects
         # Enforces a selection from within the list
         for key, option in options.items():
             print(f"{key}: {option!s}")
@@ -100,7 +102,7 @@ class HumanPlayer(Player):
         options : dict[str, Order | None ] = self.orderOptions(enemies)
         
         if not options:
-            #print("No options available!")
+            logger.info("No options available!")
             return None
 
         print(f"{self.name}, choose an order to play (your available hand is {' '.join(str(card) for card in self.hand)})")
@@ -166,14 +168,14 @@ class AIPlayer(Player):
             options = self.orderOptions(enemies)
     
             if not options:
-                #print("No options available!")
+                logger.info("No Order options available!")
                 return None
     
             cardCombos = combinations(self.hand)
     
             chosenOrder, chosenCards = chooseOrder(self.unit, enemies, options, cardCombos)
     
-            #print(f"Playing order {chosenOrder.name if chosenOrder else 'None'} with {' '.join(str(card) for card in chosenCards) if chosenCards else 'no cards'}")
+            logger.warning(f"Playing order {chosenOrder.name if chosenOrder else 'None'} with {' '.join(str(card) for card in chosenCards) if chosenCards else 'no cards'}")
     
             if not chosenOrder:
                 return None
@@ -182,7 +184,7 @@ class AIPlayer(Player):
             chosenSum = sumCards(chosenCards)
             if chosenSum < diff:
                 # Blunder! TODO: write the Blunder table
-                #print(f"{self.name} has Blundered, trying play {chosenOrder.name} (Difficulty {diff}) with cards totalling {chosenSum}!")
+                logger.warning(f"{self.name} has Blundered, trying play {chosenOrder.name} (Difficulty {diff}) with cards totalling {chosenSum}!")
                 return None
             
             for card in chosenCards:
