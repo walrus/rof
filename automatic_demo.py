@@ -1,11 +1,19 @@
+import logging
+
 from source.cards import Card
 from source.commission import Faction, generateColonel
 from source.game import Game
 from source.players import AIPlayer
 from source.units import InfantryUnit
 
+logger = logging.getLogger(__name__)
+
 if __name__ == "__main__":
     # Play with two evenly matched units until someone runs away...again and again
+
+    # Only log big events
+    logging.basicConfig(level=logging.ERROR)
+
     numGames = 100
     maxGameLength = 30
 
@@ -25,12 +33,12 @@ if __name__ == "__main__":
         # One lower point of steadiness than usual
         royalists.setSteadiness(Card.fromShortString("2♠")) # pyright: ignore[reportArgumentType]
         player1 = AIPlayer("Dave", Faction.Royalist, col1, royalists)
-        print(f"Player Charles commands {royalists.name()}")
+        logger.error(f"Player Charles commands {royalists.name()}")
 
         col2 = generateColonel(Faction.Parliamentarian)
         col2.grip = 4
         parliamentarians = InfantryUnit(col2.shortName(), Faction.Parliamentarian, 3, 3, (0, 10))
-        print(f"Player Oliver commands {parliamentarians.name()}")
+        logger.error(f"Player Oliver commands {parliamentarians.name()}")
 
         player2 = AIPlayer("Jim", Faction.Parliamentarian, col2, parliamentarians)
 
@@ -46,28 +54,28 @@ if __name__ == "__main__":
                 bothSidesFighting = False
 
             if turnsElapsed % 10 == 0:
-                print(f"{turnsElapsed} turns elapsed")
+                logger.error(f"{turnsElapsed} turns elapsed")
 
         turnsTaken[turnsElapsed] = turnsTaken[turnsElapsed] + 1
 
         if turnsElapsed == maxGameLength:
-            print(f"Game {gameIndex} ended in a draw")
+            logger.error(f"Game {gameIndex} ended in a draw")
             draws = draws + 1
         else:
             victor = "Parliament" if parliamentarians.fitToFight() else "the Royalists"
-            print(f"Game {gameIndex} ended after {turnsElapsed} turns; {victor} won")
+            logger.error(f"Game {gameIndex} ended after {turnsElapsed} turns; {victor} won")
             if victor == "Parliament":
                 parliamentVictories = parliamentVictories + 1
             else:
                 royalistVictories = royalistVictories + 1
 
     # Now we're done with all of the tests, show us the numbers!
-    print(f"After {numGames} games, there are: ")
-    print(f"    {royalistVictories} Royalist victories")
-    print(f"    {parliamentVictories} Parliament victories")
+    logger.error(f"After {numGames} games, there are: ")
+    logger.error(f"    {royalistVictories} Royalist victories")
+    logger.error(f"    {parliamentVictories} Parliament victories")
     if draws > 0:
-        print(f"    and {draws} draws")
+        logger.error(f"    and {draws} draws")
 
-    print("Turns elapsed: ")
+    logger.error("Turns elapsed: ")
     for turn, count in turnsTaken:
-        print(f"{turn} turns: {count}")
+        logger.error(f"{turn} turns: {count}")
