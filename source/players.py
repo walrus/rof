@@ -1,5 +1,6 @@
 """Represents the actual people playing the game"""
 
+from functools import partial
 from typing import Any
 
 from source.cards import Card, combinations, draw, highestCombination, sumCards
@@ -28,6 +29,9 @@ class Player:
         self.colonel = colonel
         self.unit = unit
         self.hand = draw(colonel.grip, colonel.grip)
+
+        # Monkey patch some functions on Unit so that they can refer back to the Player for decisions
+        unit.chooseDieToLose = partial(self.chooseDieToDiscard, unit)
 
     @property
     def grip(self):
@@ -96,7 +100,7 @@ class HumanPlayer(Player):
         options : dict[str, Order | None ] = self.orderOptions(enemies)
         
         if not options:
-            print("No options available!")
+            #print("No options available!")
             return None
 
         print(f"{self.name}, choose an order to play (your available hand is {' '.join(str(card) for card in self.hand)})")
@@ -162,14 +166,14 @@ class AIPlayer(Player):
             options = self.orderOptions(enemies)
     
             if not options:
-                print("No options available!")
+                #print("No options available!")
                 return None
     
             cardCombos = combinations(self.hand)
     
             chosenOrder, chosenCards = chooseOrder(self.unit, enemies, options, cardCombos)
     
-            print(f"Playing order {chosenOrder.name if chosenOrder else 'None'} with {' '.join(str(card) for card in chosenCards) if chosenCards else 'no cards'}")
+            #print(f"Playing order {chosenOrder.name if chosenOrder else 'None'} with {' '.join(str(card) for card in chosenCards) if chosenCards else 'no cards'}")
     
             if not chosenOrder:
                 return None
@@ -178,7 +182,7 @@ class AIPlayer(Player):
             chosenSum = sumCards(chosenCards)
             if chosenSum < diff:
                 # Blunder! TODO: write the Blunder table
-                print(f"{self.name} has Blundered, trying play {chosenOrder.name} (Difficulty {diff}) with cards totalling {chosenSum}!")
+                #print(f"{self.name} has Blundered, trying play {chosenOrder.name} (Difficulty {diff}) with cards totalling {chosenSum}!")
                 return None
             
             for card in chosenCards:

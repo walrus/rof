@@ -94,11 +94,12 @@ class Unit:
     currentMovementSpeed: MovementSpeed
     shootingDistanceMultiplier: int # TODO: make a proper constant
 
-    def __init__(self, commander, unitType, faction, firepower, ferocity, nickname=""):
+    def __init__(self, commander, unitType, faction, firepower, ferocity, position, nickname=""):
         self.commander = commander
         self.unitType = unitType
         self.firepower = firepower
         self.ferocity = ferocity
+        self.position = position
         self.nickname = nickname
         self.armour = 0
         self.faction = faction # TODO: pass in faction from owning Player
@@ -106,7 +107,6 @@ class Unit:
         self.disorder = 0
         self.shooting = False
         self.fighting = False
-        self.position = (0, 0)
         self.currentOrder = None
         self.steadiness = Card.fromRankAndSuit(Rank.Nine, Suit.Clubs)
         self.currentMovementSpeed = MovementSpeed.Halt
@@ -177,7 +177,7 @@ class Unit:
             # TODO: Things like Halt should clear for neatness, but will have essentially the same effect 
             # if they get enacted every turn so low priority
             if self.currentOrder:
-                print(f"{self.name()} continues to {self.currentOrder.name}")
+                #print(f"{self.name()} continues to {self.currentOrder.name}")
                 self.carryOut(self.currentOrder)
             return
 
@@ -237,21 +237,21 @@ class Unit:
         if stopAtDestination:
             moveVector = (max(moveVector[0], direction[0]), max(moveVector[1], direction[1]))
 
-        print(f"Moving: {moveVector[0]},{moveVector[1]}")
+        #print(f"Moving: {moveVector[0]},{moveVector[1]}")
         self.position = (self.position[0] + round(moveVector[0]), self.position[1] + round(moveVector[1]))
         #print(f"New position {self.position[0]},{self.position[1]}")
 
     def charge(self, target: "Unit") -> None:
         # Before you charge, have to check to see if your men baulk, or theirs flee
         if not self.panicTest():
-            print(f"{self.name()} baulks and fails to charge {target.name()}")
+            #print(f"{self.name()} baulks and fails to charge {target.name()}")
             self.morale = MoraleState.Wavering
             return
 
         target.panicTest()
         if target.panicked():
             # If the target Panics (not just Wavers) then a combat _probably_ won't happen
-            print(f"{target.name()} runs rather than stand and fight {self.name()}")
+            #print(f"{target.name()} runs rather than stand and fight {self.name()}")
             target.flee(self.directionOf(target))
     
         speed = MovementSpeed.Gallop if self.unitType == UnitType.Cavalry else MovementSpeed.Run
@@ -260,10 +260,10 @@ class Unit:
         if self.distanceTo(target) < 1:
             # caught them! If they're fleeing, then they're dispersed
             if target.panicked():
-                print(f"{self.name()} disperses {target.name()}")
+                #print(f"{self.name()} disperses {target.name()}")
                 target.disperse()
             else:
-                print(f"{self.name()} charges {target.name()}")
+                #print(f"{self.name()} charges {target.name()}")
                 self.fight(target)
     
     def fight(self, target: "Unit") -> None:
@@ -288,11 +288,11 @@ class Unit:
         # Now apply the effects
         target.takeCasualties(enemyCasualties)
         target.disorder = target.disorder + enemyDisorder
-        print(f"{target.name()} takes {enemyCasualties} casualties and {enemyDisorder} disorder")
+        #print(f"{target.name()} takes {enemyCasualties} casualties and {enemyDisorder} disorder")
 
         self.takeCasualties(friendlyCasualties)
         self.disorder = self.disorder + friendlyDisorder
-        print(f"{self.name()} takes {friendlyCasualties} casualties and {friendlyDisorder} disorder")
+        #print(f"{self.name()} takes {friendlyCasualties} casualties and {friendlyDisorder} disorder")
 
         # Finally, trigger panic tests first for the loser and then (if they don't run) the winner
         loser = target
@@ -301,7 +301,7 @@ class Unit:
             loser = self
             winner = target
 
-        print(f"{winner.name()} wins this round!")
+        #print(f"{winner.name()} wins this round!")
 
         # Take panic tests - a failed test here results in a Panic not just Wavering
         # If both sides are still around, then they're both fighting (TODO: except Cavalry!)
@@ -310,16 +310,16 @@ class Unit:
             # Loser runs away
             loser.flee(winner.directionOf(loser))
             winner.fighting = False
-            print(f"{loser.name()} runs away after losing!")
+            #print(f"{loser.name()} runs away after losing!")
         elif not winner.panicTest():
             # Winner ran away! # TODO: this won't work if fighting units end up right on top of each other
             winner.flee(loser.directionOf(winner))
             loser.fighting = False
-            print(f"{winner.name()} runs away despite winning!")
+            #print(f"{winner.name()} runs away despite winning!")
         else:
             self.fighting = True
             target.fighting = True
-            print("Both sides stay in the fight for another round")
+            #print("Both sides stay in the fight for another round")
 
 
     def flee(self, direction: tuple[int, int]) -> None:
@@ -337,7 +337,7 @@ class Unit:
         casualties = sumCards(cards) // distance
         enemyDisorder = casualties + numAboveThreshold(cards, target.steadiness)
 
-        print(f"{target.name()} takes {casualties} casualties and {enemyDisorder} disorder")
+        #print(f"{target.name()} takes {casualties} casualties and {enemyDisorder} disorder")
         target.takeCasualties(casualties)
         target.disorder = target.disorder + enemyDisorder
         enemyPanic = enemyDisorder >= PANIC_THRESHOLD or target.disorder >= AUTO_PANIC_THRESHOLD
@@ -359,7 +359,7 @@ class Unit:
             return
 
         if self.morale == MoraleState.Wavering:
-            print(f"{self.name()} is rallied to OK again")
+            #print(f"{self.name()} is rallied to OK again")
             self.morale = MoraleState.OK
         else:
             print(f"{self.name()} is rallied back to Wavering")
@@ -367,7 +367,7 @@ class Unit:
 
     def encourage(self, cardsUsed: list[Card]) -> None:
         totalDisorderRemoved = sum(2 if card.rank() >= Rank.Jack else 1 for card in cardsUsed)
-        print(f"{self.name()} removed {totalDisorderRemoved} disorder by encouragement")
+        #print(f"{self.name()} removed {totalDisorderRemoved} disorder by encouragement")
         self.disorder = max(0, self.disorder - totalDisorderRemoved)
 
     def moraleCheck(self) -> bool:
@@ -420,8 +420,8 @@ class Unit:
 
 class InfantryUnit(Unit):
 
-    def __init__(self, commander, faction, firepower, ferocity, nickname=""):
-        super().__init__(commander, UnitType.Infantry, faction, firepower, ferocity, nickname)
+    def __init__(self, commander, faction, firepower, ferocity, position, nickname=""):
+        super().__init__(commander, UnitType.Infantry, faction, firepower, ferocity, position, nickname)
         self.unitType = UnitType.Infantry
         self.shootingDistanceMultiplier = 1
 
@@ -441,8 +441,8 @@ class CavalryUnit(Unit):
     dash: Card
     blown: bool
 
-    def __init__(self, commander, faction, firepower, ferocity, nickname=""):
-        super().__init__(commander, UnitType.Cavalry, faction, firepower, ferocity, nickname)
+    def __init__(self, commander, faction, firepower, ferocity, position, nickname=""):
+        super().__init__(commander, UnitType.Cavalry, faction, firepower, ferocity, position, nickname)
         self.unitType = UnitType.Cavalry
         self.shootingDistanceMultiplier = 2
         self.dash = Card.fromRankAndSuit(Rank.Eight, Suit.Clubs)

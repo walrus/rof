@@ -34,7 +34,7 @@ class Game:
             #print(f"Order: {player.unit.name()} is ordered to {order.name if order else "do nothing"}")
             player.unit.carryOut(order)
             #print(f"{player.unit.name()} now at {player.unit.position[0]},{player.unit.position[1]}")
-            print(f"{player.unit.name()} now has {player.unit.disorder} disorder; status {player.unit.morale}")
+            #print(f"{player.unit.name()} now has {player.unit.disorder} disorder; status {player.unit.morale}")
         # Panic phase
         #TODO: figure out how I'm checking for panic here
         for player in self.players:
