@@ -79,6 +79,9 @@ class Unit:
     unitType: UnitType
     nickname: str
     steadiness: Card
+    firepower: int
+    ferocity: int
+    casualties: int
     armour: int
     faction: Faction
     morale: MoraleState
@@ -91,9 +94,11 @@ class Unit:
     currentMovementSpeed: MovementSpeed
     shootingDistanceMultiplier: int # TODO: make a proper constant
 
-    def __init__(self, commander, unitType, faction, nickname=""):
+    def __init__(self, commander, unitType, faction, firepower, ferocity, nickname=""):
         self.commander = commander
         self.unitType = unitType
+        self.firepower = firepower
+        self.ferocity = ferocity
         self.nickname = nickname
         self.armour = 0
         self.faction = faction # TODO: pass in faction from owning Player
@@ -105,6 +110,7 @@ class Unit:
         self.currentOrder = None
         self.steadiness = Card.fromRankAndSuit(Rank.Nine, Suit.Clubs)
         self.currentMovementSpeed = MovementSpeed.Halt
+        self.casualties = 0
 
     # Setters, mostly fixed for Unit lifetime
     def name(self) -> str:
@@ -125,16 +131,6 @@ class Unit:
     def setArmour(self, armour: int) -> None:
         self.armour = armour
 
-    # Status, mostly implemented by subclasses 
-    def strength(self) -> int:
-        return 0
-
-    def ferocity(self) -> int:
-        return 0
-
-    def firepower(self) -> int:
-        return 0
-
     def isOK(self) -> bool:
         return self.morale == MoraleState.OK
 
@@ -148,10 +144,25 @@ class Unit:
         return self.morale == MoraleState.Dispersed
     
     def fitToFight(self) -> bool:
-        return self.strength() > 0 and not (self.panicked() or self.dispersed())
+        return (self.firepower > 0 or self.ferocity > 0) and not (self.panicked() or self.dispersed())
 
     def takeCasualties(self, num: int) -> None:
-        pass
+        if num == 0:
+            return
+
+        self.casualties = self.casualties + num
+
+        while self.casualties > 6:
+            self.casualties = self.casualties - 6
+            loseFirepower = self.chooseDieToLose()
+            if loseFirepower:
+                self.firepower = self.firepower - 1
+            else:
+                self.ferocity = self.ferocity - 1
+
+    def chooseDieToLose(self) -> bool:
+        # True for Firepower; false for Ferocity
+        return False
 
     def disperse(self) -> None:
         self.morale = MoraleState.Dispersed
@@ -258,14 +269,14 @@ class Unit:
     def fight(self, target: "Unit") -> None:
         # Calculate our effects on the enemy first but apply them simultaneously!
         enemyCasualtyThreshold = MIN_FIGHTING_THRESHOLD + target.armour
-        friendlyCards = draw(self.ferocity(), BEST_OF_FIGHTING)
+        friendlyCards = draw(self.ferocity, BEST_OF_FIGHTING)
     
         enemyCasualties = sumCards(friendlyCards) // enemyCasualtyThreshold
         enemyDisorder = enemyCasualties + numAboveThreshold(friendlyCards, target.steadiness)
 
         # Now calculate the enemy's
         friendlyCasualtyThreshold = MIN_FIGHTING_THRESHOLD + self.armour
-        enemyCards = draw(target.ferocity(), BEST_OF_FIGHTING)
+        enemyCards = draw(target.ferocity, BEST_OF_FIGHTING)
     
         friendlyCasualties = sumCards(enemyCards) // friendlyCasualtyThreshold
         friendlyDisorder = friendlyCasualties + numAboveThreshold(enemyCards, self.steadiness)
@@ -320,7 +331,7 @@ class Unit:
 
     def shootAt(self, target: "Unit") -> None:
         distance = max(MIN_SHOOTING_DISTANCE, (self.distanceTo(target) * self.shootingDistanceMultiplier))
-        cards = draw(self.firepower(), BEST_OF_SHOOTING)
+        cards = draw(self.firepower, BEST_OF_SHOOTING)
     
         casualties = sumCards(cards) // distance
         enemyDisorder = casualties + numAboveThreshold(cards, target.steadiness)
@@ -407,24 +418,11 @@ class Unit:
 
 
 class InfantryUnit(Unit):
-    pike: int # How many pikemen are in the unit
-    shot: int # How many musketeers are in the unit
 
-    def __init__(self, commander, faction, pike, shot, nickname=""):
-        super().__init__(commander, UnitType.Infantry, faction, nickname)
-        self.pike = pike
-        self.shot = shot
+    def __init__(self, commander, faction, firepower, ferocity, nickname=""):
+        super().__init__(commander, UnitType.Infantry, faction, firepower, ferocity, nickname)
         self.unitType = UnitType.Infantry
         self.shootingDistanceMultiplier = 1
-
-    def ferocity(self) -> int:
-        return self.pike // 4
-
-    def firepower(self) -> int:
-        return self.shot // 8
-
-    def strength(self) -> int:
-        return self.pike + self.shot
 
     def inRange(self, target: Unit) -> bool:
         return self.distanceTo(target) <= MUSKET_RANGE
@@ -432,56 +430,21 @@ class InfantryUnit(Unit):
     def inChargeRange(self, target: Unit) -> bool:
         return self.distanceTo(target) <= SINGLE_CARD_CHARGE_MAX
 
-    def takeCasualties(self, num: int) -> None:
-        if num == 0:
-            return
-
-        #TODO combat casualties handled differently
-        #TODO handle running out of pike or shot
-
-        # shot take first cas, then equally split
-        shotCasualties = ceil(num * (2 / 3))
-        pikeCasualties = num - shotCasualties
-
-        if not self.pike:
-            shotCasualties = shotCasualties + pikeCasualties
-        if not self.shot:
-            pikeCasualties = pikeCasualties + shotCasualties
+    def chooseDieToLose(self) -> bool:
+        # True for Firepower; False for ferocity. Prefer to lose Ferocity
+        return self.ferocity <= self.firepower
         
-        print(f"Lost {pikeCasualties} pike and {shotCasualties} shot")
-
-        if self.pike > pikeCasualties:
-            self.pike = self.pike - pikeCasualties
-        else:
-            self.pike = 0
-
-        if self.shot > shotCasualties:
-            self.shot = self.shot - shotCasualties
-        else:
-            self.shot = 0
     
-
 class CavalryUnit(Unit):
-    horse: int # Number of horsemen in the unit
     dash: Card
     blown: bool
 
-    def __init__(self, commander, faction, horse, nickname=""):
-        super().__init__(commander, UnitType.Cavalry, faction, nickname)
-        self.horse = horse
+    def __init__(self, commander, faction, firepower, ferocity, nickname=""):
+        super().__init__(commander, UnitType.Cavalry, faction, firepower, ferocity, nickname)
         self.unitType = UnitType.Cavalry
         self.shootingDistanceMultiplier = 2
         self.dash = Card.fromRankAndSuit(Rank.Eight, Suit.Clubs)
         self.blown = False
-
-    def ferocity(self) -> int:
-        return self.horse // 2
-
-    def firepower(self) -> int:
-        return self.horse // 4
-
-    def strength(self) -> int:
-        return self.horse
 
     def inRange(self, target: Unit) -> bool:
         return self.distanceTo(target) <= PISTOL_RANGE
@@ -490,6 +453,11 @@ class CavalryUnit(Unit):
         distance = self.distanceTo(target)
         return distance <= SINGLE_CARD_CHARGE_MAX if self.blown else distance <= TWO_CARD_CHARGE_MAX
 
+    def chooseDieToLose(self) -> bool:
+        # True for Firepower; False for ferocity. Prefer to lose Firepower
+        return self.firepower > 0
+
+    
 class Order:
     """ Represents an order a Player might give to a Unit 
         Tightly coupled because most Orders have a prerequisite which depends on a Unit"""
@@ -553,6 +521,6 @@ basicOrders = [
     Order("Charge", "Move quickly towards the enemy", 5, True, lambda u: u.isOK()),
     Order("Trot", "Cavalry move fairly quickly forwards", 5, True, lambda u:u.unitType == UnitType.Cavalry),
     Order("Gallop", "Cavalry move quickly forwards", 5, True, lambda u: u.unitType == UnitType.Cavalry and u.currentMovementSpeed == MovementSpeed.Trot and not u.blown),
-    Order("Fire", "Start shooting", 5, False, lambda u: u.firepower() > 0 and not u.shooting),
+    Order("Fire", "Start shooting", 5, False, lambda u: u.firepower > 0 and not u.shooting),
     Order("Cease Fire", "Stop shooting", 5, True, lambda u: u.shooting),
 ]

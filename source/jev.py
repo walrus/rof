@@ -17,7 +17,8 @@ def unitStateToDict(unit: Unit) -> dict[str, str]:
     state['fighting'] = str(unit.fighting)
     state['shooting'] = str(unit.shooting)
     state['disorder'] = str(unit.disorder)
-    state['strength'] = str(unit.strength())
+    state['firepower'] = str(unit.firepower)
+    state['ferocity'] = str(unit.ferocity)
     state['position'] = f"{unit.position[0]},{unit.position[1]}"
     return state
 
@@ -176,3 +177,30 @@ def chooseOrder(unit : Unit, enemies : list[Unit], orders : dict[str, Order], ca
             cardChoiceToReturn = [Card.fromShortString(card) for card in cardsFromChoice]
 
     return orderToReturn, cardChoiceToReturn # pyright: ignore[reportReturnType] (fromShortString won't fail)
+
+def chooseDieToLose(unit: Unit) -> bool:
+    # Choose whether to discard a Firepower die (true) or a Ferocity die (false)
+    unitState = unitStateToJson(unit)
+    options = {
+        'Firepower': None,
+        'Ferocity': None
+    }
+    with TypeSafeClient() as client:
+            response = client.system_one(
+                state={"document": "I'm playing a game. As part of this game my unit of soldiers has taken casualties and needs to discard either a `Ferocity` or `Firepower` die"
+                "I need to pick one, based on the following criteria: You can only reduce the `firepower` or `ferocity` stat (in `unitState`) to 0 if there are no other options. "
+                "Cavalry rely on their Ferocity more; infantry on their Firepower, so pick the other die. If in doubt, reduce the higher one",
+                "unitState": unitState,
+                },
+                questions={
+                    "dice": Choice(
+                        instructions="Which die should I discard?",
+                        criteria=options,
+                    ),
+                },
+            )
+            diceChoice = response.answers["dice"]
+            if diceChoice and diceChoice.choice:
+                return diceChoice.choice == 'Firepower'
+        
+    return False
