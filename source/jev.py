@@ -200,7 +200,7 @@ def chooseDieToLose(unit: Unit) -> bool:
                 },
             )
             diceChoice = response.answers["dice"]
-            if diceChoice and diceChoice.choice:
-                return diceChoice.choice == 'Firepower'
+            if diceChoice and diceChoice.choice: # pyright: ignore[reportAttributeAccessIssue]
+                return diceChoice.choice == 'Firepower' # pyright: ignore[reportAttributeAccessIssue]
         
     return False

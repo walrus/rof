@@ -6,7 +6,7 @@ from source.constants import Faction
 from source.jev import chooseActivationCard, chooseCardToDiscard, chooseOrder
 from source.units import Order, Unit, basicOrders
 
-
+#TODO: proper abstract class etc
 class Player:
     name: str
     faction: Faction
@@ -39,52 +39,74 @@ class Player:
             #print(f"{self.name} chooses to discard a {cardChoice!s}")
             self.hand.remove(cardChoice)
 
+    def orderOptions(self, enemies: list[Unit]) -> dict[str, Order]:
+        """ Get all possible Orders, ruling out any that no combination of cards in hand can play"""
+        highestCardCombo = highestCombination(self.hand)
+        return {order.name: order for order in basicOrders if order.isPossible(highestCardCombo, self.unit, enemies)}
+
+    # Abstract methods for making decisions implemented by subclasses
+
+    def chooseActivationCard(self) -> Card:
+        return self.hand[0] # Hand guaranteed to contain at least two cards at this point
+
+    def chooseOrder(self, enemies: list[Unit]) -> Order | None:
+        return None
+    
+    def chooseDieToDiscard(self, unit: Unit) -> bool:
+            # True for Firepower; false for ferocity
+            return False
+
+class HumanPlayer(Player):
+    pass
+
+class AIPlayer(Player):
+    # Uses Jev to make decisions instead of asking about them
+    
     def chooseActivationCard(self) -> Card:
         """ Pick and spend an activation card, using Jev to choose """
         cardChoice = chooseActivationCard(self.hand)
         self.hand.remove(cardChoice)
         return cardChoice
 
-    def orderOptions(self, enemies: list[Unit]) -> dict[str, Order]:
-        """ Get all possible Orders, ruling out any that no combination of cards in hand can play"""
-        highestCardCombo = highestCombination(self.hand)
-        return {order.name: order for order in basicOrders if order.isPossible(highestCardCombo, self.unit, enemies)}
-
     def chooseOrder(self, enemies: list[Unit]) -> Order | None:
-        """ Pick an order to give """
-        options = self.orderOptions(enemies)
+            """ Pick an order to give """
+            options = self.orderOptions(enemies)
+    
+            if not options:
+                print("No options available!")
+                return None
+    
+            cardCombos = combinations(self.hand)
+    
+            chosenOrder, chosenCards = chooseOrder(self.unit, enemies, options, cardCombos)
+    
+            print(f"Playing order {chosenOrder.name if chosenOrder else 'None'} with {' '.join(str(card) for card in chosenCards) if chosenCards else 'no cards'}")
+    
+            if not chosenOrder:
+                return None
+    
+            diff = chosenOrder.currentDifficulty(self.unit)
+            chosenSum = sumCards(chosenCards)
+            if chosenSum < diff:
+                # Blunder! TODO: write the Blunder table
+                print(f"{self.name} has Blundered, trying play {chosenOrder.name} (Difficulty {diff}) with cards totalling {chosenSum}!")
+                return None
+            
+            for card in chosenCards:
+                self.hand.remove(card)
+    
+            # TODO: work on target choice; for now always pick the sole enemy
+            if chosenOrder.name in ['Fire', 'Charge']:
+                chosenOrder.target = enemies[0]
+            elif chosenOrder.name in ['Walk', 'Run', 'Trot', 'Gallop']:
+                chosenOrder.direction = self.unit.directionOf(enemies[0])
+            elif chosenOrder.name in ['Flee']:
+                directionTo = self.unit.directionOf(enemies[0])
+                chosenOrder.direction = (directionTo[0] * -1, directionTo[1] * -1)
+            elif chosenOrder.name in ['Encourage']:
+                chosenOrder.cardsUsed = chosenCards
+            return chosenOrder
 
-        if not options:
-            print("No options available!")
-            return None
-
-        cardCombos = combinations(self.hand)
-
-        chosenOrder, chosenCards = chooseOrder(self.unit, enemies, options, cardCombos)
-
-        print(f"Playing order {chosenOrder.name if chosenOrder else 'None'} with {' '.join(str(card) for card in chosenCards) if chosenCards else 'no cards'}")
-
-        if not chosenOrder:
-            return None
-
-        diff = chosenOrder.currentDifficulty(self.unit)
-        chosenSum = sumCards(chosenCards)
-        if chosenSum < diff:
-            # Blunder! TODO: write the Blunder table
-            print(f"{self.name} has Blundered, trying play {chosenOrder.name} (Difficulty {diff}) with cards totalling {chosenSum}!")
-            return None
-        
-        for card in chosenCards:
-            self.hand.remove(card)
-
-        # TODO: work on target choice; for now always pick the sole enemy
-        if chosenOrder.name in ['Fire', 'Charge']:
-            chosenOrder.target = enemies[0]
-        elif chosenOrder.name in ['Walk', 'Run', 'Trot', 'Gallop']:
-            chosenOrder.direction = self.unit.directionOf(enemies[0])
-        elif chosenOrder.name in ['Flee']:
-            directionTo = self.unit.directionOf(enemies[0])
-            chosenOrder.direction = (directionTo[0] * -1, directionTo[1] * -1)
-        elif chosenOrder.name in ['Encourage']:
-            chosenOrder.cardsUsed = chosenCards
-        return chosenOrder
+    def chooseDieToDiscard(self, unit: Unit) -> bool:
+        # True for Firepower; false for ferocity
+        return False
