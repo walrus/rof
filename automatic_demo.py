@@ -27,7 +27,7 @@ if __name__ == "__main__":
         logger.error(f"Game {gameIndex}")
         col1 = generateColonel(Faction.Royalist)
         col1.grip = 4
-        royalists = InfantryUnit(col1.shortName(), Faction.Royalist, 3, 3, (0, 50))
+        royalists = InfantryUnit(col1.shortName(), Faction.Royalist, 4, 3, (0, 50))
         # One lower point of steadiness than usual
         royalists.setSteadiness(Card.fromShortString("2♠")) # pyright: ignore[reportArgumentType]
         player1 = AIPlayer("Dave", Faction.Royalist, col1, royalists)
@@ -75,5 +75,6 @@ if __name__ == "__main__":
         logger.error(f"    and {draws} draws")
 
     logger.error("Turns elapsed: ")
-    for turn, count in turnsTaken:
-        logger.error(f"{turn} turns: {count}")
+    for turn, count in turnsTaken.items():
+        if count > 0:
+            logger.error(f"{turn} turns: {count}")

@@ -54,6 +54,40 @@ def chooseActivationCard(cards : list[Card]) -> Card:
     logger.info(f"Something went wrong choosing an activation card; defaulting to {cards[0]}")
     return cards[0]
 
+def chooseActivationCardsForPlayers(players: dict[str, list[Card]]) -> dict[str, Card]:
+    """ Ask Jev to choose a card from each player's hand to use for activation
+        In parallel for better speed, since they're all independent """    
+    logger.info(f"Asking Jev for Activation Cards for {len(players)} players")
+    playerQuestions = {}
+
+    for player, cards in players.items():
+        cardDict = {str(card): None for card in cards}
+        playerQuestions[f"{player}"] = Choice(
+            instructions=f"Which card should {player} choose?",
+            criteria = cardDict
+        )
+    playerAnswers = {}
+    with TypeSafeClient() as client:
+        response = client.system_one(
+            state={"document": "Several players are playing a game. As part of this game they need to pick a card from their hand. "
+            "Higher cards are better, but if they have cards from the same suit they want to save them for other things. Aces are low"},
+            questions=playerQuestions
+        )
+        
+        for player in players:
+            cardChoice = response.answers[player]
+            if cardChoice:
+                card = Card.fromShortString(cardChoice.choice) # pyright: ignore[reportAttributeAccessIssue]
+                if card:
+                    playerAnswers[player] = card
+                    continue
+            # Otherwise it failed to parse for some reason; fall back to the first card in the list
+            logger.info(f"Something went wrong choosing an activation card for {player}; defaulting to the first card in their hand")
+            playerAnswers[player] = players[player][0]
+    
+    # Fallback if I've messed up somewhere
+    return playerAnswers
+
 def chooseCardToDiscard(cards : list[Card]) -> Card:
     """ Ask Jev to choose a card from hand to discard"""
     # We don't need the value part of the dict for this query, but Jev requires it as a dict
