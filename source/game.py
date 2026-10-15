@@ -1,8 +1,8 @@
 import logging
 
-from source.players import Player, AIPlayer
-from source.units import Unit
 from source.jev import chooseActivationCardsForPlayers
+from source.players import AIPlayer, Player
+from source.units import Unit
 
 logger = logging.getLogger(__name__)
 
@@ -50,8 +50,8 @@ class Game:
             enemyUnits = [unit for unit in self.units if unit.isEnemy(player.faction)]
             command = player.chooseCommand(enemyUnits)
             player.unit.carryOut(command)
-            logger.info(f"{player.unit.name()} now at {player.unit.position[0]},{player.unit.position[1]}")
-            logger.info(f"{player.unit.name()} now has {player.unit.disorder} disorder; status {player.unit.morale}")
+            logger.warning(f"{player.unit.name()} now at {player.unit.position[0]},{player.unit.position[1]}")
+            logger.warning(f"{player.unit.name()} now has {player.unit.disorder} disorder; status {player.unit.morale.name}")
         
         # Panic phase
         #TODO: figure out how I'm checking for panic here

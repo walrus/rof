@@ -52,10 +52,10 @@ class Player:
             logger.info(f"{self.name} chooses to discard a {cardChoice!s}")
             self.hand.remove(cardChoice)
 
-    def orderOptions(self, enemies: list[Unit]) -> dict[str, Command | None]:
+    def commandOptions(self, enemies: list[Unit]) -> dict[str, Command | None]:
         """ Get all possible Commands, ruling out any that no combination of cards in hand can play"""
         highestCardCombo = highestCombination(self.hand)
-        return {order.name: order for order in basicCommands if order.isPossible(highestCardCombo, self.unit, enemies)}
+        return {command.name: command for command in basicCommands if command.isPossible(highestCardCombo, self.unit, enemies)}
 
     # Abstract methods for making decisions implemented by subclasses
 
@@ -100,14 +100,14 @@ class HumanPlayer(Player):
         return cardChoice
 
     def chooseCommand(self, enemies: list[Unit]) -> Command | None:
-        # Choose an order, then the combination of cards to play it with
-        options : dict[str, Command | None ] = self.orderOptions(enemies)
+        # Choose a command, then the combination of cards to play it with
+        options : dict[str, Command | None ] = self.commandOptions(enemies)
         
         if not options:
             logger.info("No options available!")
             return None
 
-        print(f"\n{self.name}, choose an order to play (your available hand is {' '.join(str(card) for card in self.hand)})")
+        print(f"\n{self.name}, choose a command to play (your available hand is {' '.join(str(card) for card in self.hand)})")
         options['Nothing'] = None
         #TODO: pretty ew as well
         optionStrings = {key: option.description if option else "Let the unit continue as is" for key, option in options.items()}
@@ -166,8 +166,8 @@ class AIPlayer(Player):
         return cardChoice
 
     def chooseCommand(self, enemies: list[Unit]) -> Command | None:
-            """ Pick an order to give """
-            options = self.orderOptions(enemies)
+            """ Pick a command to give """
+            options = self.commandOptions(enemies)
     
             if not options:
                 logger.info("No Command options available!")
@@ -177,7 +177,7 @@ class AIPlayer(Player):
     
             chosenCommand, chosenCards = chooseCommand(self.unit, enemies, options, cardCombos)
     
-            logger.warning(f"Playing order {chosenCommand.name if chosenCommand else 'None'} with {' '.join(str(card) for card in chosenCards) if chosenCards else 'no cards'}")
+            logger.warning(f"Playing command {chosenCommand.name if chosenCommand else 'None'} with {' '.join(str(card) for card in chosenCards) if chosenCards else 'no cards'}")
     
             if not chosenCommand:
                 return None

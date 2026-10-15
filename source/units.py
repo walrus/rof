@@ -314,7 +314,7 @@ class Unit:
 
         # Take panic tests - a failed test here results in a Panic not just Wavering
         # If both sides are still around, then they're both fighting (TODO: except Cavalry!)
-        #TODO implement pursuit as an Command type?
+        #TODO implement pursuit as a Command type?
         if not loser.panicTest():
             # Loser runs away
             loser.flee(winner.directionOf(loser))

@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 if __name__ == "__main__":
     # Play with two evenly matched units until someone runs away...again and again
-    numGames = 3
+    numGames = 1
     maxGameLength = 30
 
     royalistVictories = 0
