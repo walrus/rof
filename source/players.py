@@ -73,27 +73,30 @@ class Player:
 class HumanPlayer(Player):
     # Passes information to the terminal and waits for input to make decisions
     # TODO default that is accepted if you just hit enter
-    def _selectFromOptions(self, options: dict[str, Any]) -> str:
+    def _selectFromOptions(self, options: dict[str, Any], default: str) -> str:
         # print a list of options and return the index a player selects
         # Enforces a selection from within the list
         for key, option in options.items():
             print(f"{key}: {option!s}")
+        print(f"Default (Enter): {default}")
 
         tries = 0
         while tries < 10:
             choice = input()
+            if not choice: # Enter pressed!
+                return default
             if choice in options:
                 return choice
             else:
                 print(f"Choice {choice} is not a valid options try again")
 
             tries = tries + 1
-        return ''
+        return default
     
     def chooseActivationCard(self) -> Card:
         print(f"\n{self.name}, pick a card to activate with: ")
         handOptions = {str(i): self.hand[i] for i in range(len(self.hand))}
-        cardChoice = handOptions[self._selectFromOptions(handOptions)]
+        cardChoice = handOptions[self._selectFromOptions(handOptions, str(len(handOptions)-1))] # TODO default select lowest card not last
         self.hand.remove(cardChoice)
         return cardChoice
 
@@ -109,7 +112,7 @@ class HumanPlayer(Player):
         options['Nothing'] = None
         #TODO: pretty ew as well
         optionStrings = {key: option.description if option else "Let the unit continue as is" for key, option in options.items()}
-        chosenOrder = options[self._selectFromOptions(optionStrings)]
+        chosenOrder = options[self._selectFromOptions(optionStrings, 'Nothing')]
 
         if not chosenOrder:
             print("Doing nothing; no cards need be played")
@@ -121,7 +124,7 @@ class HumanPlayer(Player):
         usefulCombos = [combo for combo in cardCombos if combo[0] >= requiredDifficulty]
         comboOptions = {str(i): f"{' '.join(str(card) for card in combo[1])} ({combo[0]} total)" for i, combo in enumerate(usefulCombos)}
         print(f"Choose some cards to play your Order with (required difficulty {requiredDifficulty})")
-        comboChoice = self._selectFromOptions(comboOptions)
+        comboChoice = self._selectFromOptions(comboOptions, str(len(comboOptions) - 1))
 
         #TODO: ew
         chosenCards = usefulCombos[int(comboChoice)][1]
@@ -150,7 +153,7 @@ class HumanPlayer(Player):
             '0': 'Firepower',
             '1': 'Ferocity'
         }
-        dieChoice = self._selectFromOptions(dieOptions)
+        dieChoice = self._selectFromOptions(dieOptions, 'Ferocity')
 
         return dieChoice == '0'
 
