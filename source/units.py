@@ -170,6 +170,12 @@ class Unit:
     def disperse(self) -> None:
         self.morale = MoraleState.Dispersed
 
+    def status(self) -> str:
+        action = "firing" if self.shooting else "waiting"
+        action = "in combat" if self.fighting else action
+
+        return f"{self.name()} is {action}. Current Disorder {self.disorder}"
+
     # Deal with Orders
 
     def carryOut(self, order: Order) -> None:  # noqa: F821 (I'll deal with it!)
@@ -291,11 +297,11 @@ class Unit:
         # Now apply the effects
         target.takeCasualties(enemyCasualties)
         target.disorder = target.disorder + enemyDisorder
-        logger.info(f"{target.name()} takes {enemyCasualties} casualties and {enemyDisorder} disorder")
+        logger.warning(f"{target.name()} takes {enemyCasualties} casualties and {enemyDisorder} disorder in combat")
 
         self.takeCasualties(friendlyCasualties)
         self.disorder = self.disorder + friendlyDisorder
-        logger.info(f"{self.name()} takes {friendlyCasualties} casualties and {friendlyDisorder} disorder")
+        logger.warning(f"{self.name()} takes {friendlyCasualties} casualties and {friendlyDisorder} disorder in combat")
 
         # Finally, trigger panic tests first for the loser and then (if they don't run) the winner
         loser = target
@@ -340,7 +346,7 @@ class Unit:
         casualties = sumCards(cards) // distance
         enemyDisorder = casualties + numAboveThreshold(cards, target.steadiness)
 
-        logger.info(f"{target.name()} takes {casualties} casualties and {enemyDisorder} disorder")
+        logger.warning(f"{target.name()} takes {casualties} casualties and {enemyDisorder} disorder")
         target.takeCasualties(casualties)
         target.disorder = target.disorder + enemyDisorder
         enemyPanic = enemyDisorder >= PANIC_THRESHOLD or target.disorder >= AUTO_PANIC_THRESHOLD
@@ -370,7 +376,7 @@ class Unit:
 
     def encourage(self, cardsUsed: list[Card]) -> None:
         totalDisorderRemoved = sum(2 if card.rank() >= Rank.Jack else 1 for card in cardsUsed)
-        logger.info(f"{self.name()} removed {totalDisorderRemoved} disorder by encouragement")
+        logger.warning(f"{self.name()} removed {totalDisorderRemoved} disorder by encouragement")
         self.disorder = max(0, self.disorder - totalDisorderRemoved)
 
     def moraleCheck(self) -> bool:

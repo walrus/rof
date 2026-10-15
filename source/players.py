@@ -33,7 +33,7 @@ class Player:
         self.hand = draw(colonel.grip, colonel.grip)
 
         # Monkey patch some functions on Unit so that they can refer back to the Player for decisions
-        unit.chooseDieToLose = partial(self.chooseDieToDiscard, unit)
+        unit.chooseDieToLose = self.chooseDieToDiscard
 
     @property
     def grip(self):
@@ -66,7 +66,7 @@ class Player:
     def chooseOrder(self, enemies: list[Unit]) -> Order | None:
         return None
     
-    def chooseDieToDiscard(self, unit: Unit) -> bool:
+    def chooseDieToDiscard(self) -> bool:
             # True for Firepower; false for ferocity
             return False
 
@@ -91,7 +91,7 @@ class HumanPlayer(Player):
         return ''
     
     def chooseActivationCard(self) -> Card:
-        print(f"{self.name}, pick a card to activate with: ")
+        print(f"\n{self.name}, pick a card to activate with: ")
         handOptions = {str(i): self.hand[i] for i in range(len(self.hand))}
         cardChoice = handOptions[self._selectFromOptions(handOptions)]
         self.hand.remove(cardChoice)
@@ -105,7 +105,7 @@ class HumanPlayer(Player):
             logger.info("No options available!")
             return None
 
-        print(f"{self.name}, choose an order to play (your available hand is {' '.join(str(card) for card in self.hand)})")
+        print(f"\n{self.name}, choose an order to play (your available hand is {' '.join(str(card) for card in self.hand)})")
         options['Nothing'] = None
         #TODO: pretty ew as well
         optionStrings = {key: option.description if option else "Let the unit continue as is" for key, option in options.items()}
@@ -142,8 +142,8 @@ class HumanPlayer(Player):
 
         return chosenOrder
 
-    def chooseDieToDiscard(self, unit: Unit) -> bool:
-        print(f"{self.name}, pick a die to discard. ")
+    def chooseDieToDiscard(self) -> bool:
+        print(f"\n{self.name}, pick a die to discard. ")
         print(f"{self.unit.name()} currently has {self.unit.firepower} Firepower and {self.unit.ferocity} Ferocity")
 
         dieOptions = {
@@ -202,6 +202,6 @@ class AIPlayer(Player):
                 chosenOrder.cardsUsed = chosenCards
             return chosenOrder
 
-    def chooseDieToDiscard(self, unit: Unit) -> bool:
+    def chooseDieToDiscard(self) -> bool:
         # True for Firepower; false for ferocity
-        return chooseDieToLose(unit)
+        return chooseDieToLose(self.unit)

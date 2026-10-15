@@ -13,23 +13,28 @@ if __name__ == "__main__":
     # Play until someone runs away
 
     col1 = generateColonel(Faction.Royalist)
-    cav = CavalryUnit(col1.shortName(), Faction.Royalist, 2, 4, (0, 50))
-    player1 = AIPlayer("Dave", Faction.Royalist, col1, cav)
-    print(f"Player Charles commands {cav.name()}")
+    royalists = CavalryUnit(col1.shortName(), Faction.Royalist, 2, 4, (0, 50))
+    player1 = AIPlayer("Charles", Faction.Royalist, col1, royalists)
+    print(f"Player Charles commands {royalists.name()}")
 
     col2 = generateColonel(Faction.Parliamentarian)
-    inf = InfantryUnit(col2.shortName(), Faction.Parliamentarian, 3, 3, (0, 10))
-    player2 = HumanPlayer("Jim", Faction.Parliamentarian, col2, inf)
-    print(f"Player Oliver commands {inf.name()}")
+    parliamentarians = InfantryUnit(col2.shortName(), Faction.Parliamentarian, 3, 3, (0, 10))
+    player2 = HumanPlayer("Oliver", Faction.Parliamentarian, col2, parliamentarians)
+    print(f"Player Oliver commands {parliamentarians.name()}")
 
     game = Game([player1, player2])
 
     bothSidesFighting = True
-    turns_elapsed = 0
+    turnsElapsed = 0
     while bothSidesFighting:
+        turnsElapsed = turnsElapsed + 1
+        print(f"Turn {turnsElapsed} \n")
+
         game.play_turn()
-        turns_elapsed = turns_elapsed + 1
-        if not cav.fitToFight() or not inf.fitToFight():
+
+        if not royalists.fitToFight() or not parliamentarians.fitToFight():
             bothSidesFighting = False
 
-    print(f"Game ended after {turns_elapsed} turns")
+    print(f"Game ended after {turnsElapsed} turns")
+    victor = "Parliament" if parliamentarians.fitToFight() else "Royalists"
+    print(f"The winner was {victor}")

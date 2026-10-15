@@ -34,6 +34,7 @@ class Game:
             else:
                 card = player.chooseActivationCard()
                 activationCards.append((card, player))
+                print(player.unit.status())
 
         # Choose activation cards in parallel for speed
         if playerHandsForJev:
@@ -51,6 +52,7 @@ class Game:
             player.unit.carryOut(order)
             logger.info(f"{player.unit.name()} now at {player.unit.position[0]},{player.unit.position[1]}")
             logger.info(f"{player.unit.name()} now has {player.unit.disorder} disorder; status {player.unit.morale}")
+        
         # Panic phase
         #TODO: figure out how I'm checking for panic here
         for player in self.players:

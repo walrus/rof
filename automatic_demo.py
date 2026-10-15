@@ -28,18 +28,17 @@ if __name__ == "__main__":
         col1 = generateColonel(Faction.Royalist)
         col1.grip = 4
         royalists = InfantryUnit(col1.shortName(), Faction.Royalist, 4, 3, (0, 50))
-        # One lower point of steadiness than usual
-        royalists.setSteadiness(Card.fromShortString("2♠")) # pyright: ignore[reportArgumentType]
-        player1 = AIPlayer("Dave", Faction.Royalist, col1, royalists)
+        # MUCH lower steadiness than usual (9)
+        royalists.setSteadiness(Card.fromShortString("4♠")) # pyright: ignore[reportArgumentType]
+        player1 = AIPlayer("Charles", Faction.Royalist, col1, royalists)
         logger.error(f"Player Charles commands {royalists.name()}")
 
         col2 = generateColonel(Faction.Parliamentarian)
         col2.grip = 4
         parliamentarians = InfantryUnit(col2.shortName(), Faction.Parliamentarian, 3, 3, (0, 10))
+        player2 = AIPlayer("Oliver", Faction.Parliamentarian, col2, parliamentarians)
         logger.error(f"Player Oliver commands {parliamentarians.name()}")
-
-        player2 = AIPlayer("Jim", Faction.Parliamentarian, col2, parliamentarians)
-
+        
         game = Game([player1, player2])
 
         bothSidesFighting = True
