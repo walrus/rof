@@ -5,7 +5,7 @@ from json import dumps, loads
 from typesafe_sdk import Choice, TypeSafeClient
 
 from source.cards import Card
-from source.units import Order, Unit
+from source.units import Command, Unit
 
 logger = logging.getLogger(__name__)
 
@@ -14,7 +14,7 @@ def unitStateToDict(unit: Unit) -> dict[str, str]:
     state = {}
     state['name'] = unit.name()
     state['unitType'] = str(unit.unitType)
-    state['currentOrder'] = unit.currentOrder.name if unit.currentOrder else 'None'
+    state['currentCommand'] = unit.currentCommand.name if unit.currentCommand else 'None'
     state['morale'] = str(unit.morale)
     state['fighting'] = str(unit.fighting)
     state['shooting'] = str(unit.shooting)
@@ -115,11 +115,11 @@ def chooseCardToDiscard(cards : list[Card]) -> Card:
     logger.info(f"Something went wrong discarding; defaulting to {cards[0]}")
     return cards[0]
 
-def chooseOrder(unit : Unit, enemies : list[Unit], orders : dict[str, Order | None], cardCombos: list[tuple[int, list[Card]]]) -> tuple[Order | None, list[Card]]:
-    """ Ask Jev to choose an order to give and the cards to discard in order to play it
-        Makes two calls to the Jev API so that we can ensure the cards are actually capable of playing the Order"""
+def chooseCommand(unit : Unit, enemies : list[Unit], commands : dict[str, Command | None], cardCombos: list[tuple[int, list[Card]]]) -> tuple[Command | None, list[Card]]:
+    """ Ask Jev to choose a command to give and the cards to discard in order to play it
+        Makes two calls to the Jev API so that we can ensure the cards are actually capable of playing the Command"""
 
-    # Turn our lists of orders and cards into dicts of JSON objects that Jev can understand
+    # Turn our lists of commands and cards into dicts of JSON objects that Jev can understand
     cardOptions = {}
 
     for i, combo in enumerate(cardCombos):
@@ -130,19 +130,19 @@ def chooseOrder(unit : Unit, enemies : list[Unit], orders : dict[str, Order | No
         cardOptions[str(i)] = dumps(optionDict)
 
     # It's always an option to simply do nothing, but we represent that in the game engine with None
-    orderOptions = {}
-    nothingOrderDict = {
-        'description': "Carry on without giving any new orders this Turn",
+    commandOptions = {}
+    nothingCommand = {
+        'description': "Carry on without giving any new commands this Turn",
         'difficulty': 0
     }
-    orderOptions['Nothing'] = dumps(nothingOrderDict)
+    commandOptions['Nothing'] = dumps(nothingCommand)
 
-    for name, order in orders.items():
-        orderDict = {
-            'description': order.description if order else "None",
-            'difficulty': str(order.currentDifficulty(unit) if order else 0)
+    for name, command in commands.items():
+        commandDict = {
+            'description': command.description if command else "None",
+            'difficulty': str(command.currentDifficulty(unit) if command else 0)
         }
-        orderOptions[name] = dumps(orderDict)
+        commandOptions[name] = dumps(commandDict)
 
     unitState = unitStateToJson(unit)
 
@@ -156,51 +156,51 @@ def chooseOrder(unit : Unit, enemies : list[Unit], orders : dict[str, Order | No
 
         enemyState[enemy.name()] = dumps(enemyDict)
 
-    orderToReturn = None
+    commandToReturn = None
     cardChoiceToReturn = []
 
     with TypeSafeClient() as client:
         response = client.system_one(
-            state={"document": "I'm playing a game in which I command a unit of troops. I need to decide which order to give them, "
+            state={"document": "I'm playing a game in which I command a unit of troops. I need to decide which command to give them, "
             "based on both the unit's current state (`unitState`) and the state of any nearby enemies `enemyState`"
             "Broadly, the priority is to Rally the unit if it's Wavering or Panicked, fire on the enemy if in range and the unit isn't already firing, "
             "or Run/Move towards them if not in range. If the enemy unit is closer than 10 and they're wavering, we should Charge."
-            "If the current Order matches what we would otherwise prioritise, consider `Encourage` if we have any Disorder or `Nothing`"
+            "If the current Command matches what we would otherwise prioritise, consider `Encourage` if we have any Disorder or `Nothing`"
             "Cavalry units (`unitType` Cavalry) should prioritise charging the enemy if `isInChargeRange`, or move towards them otherwise",
             "unitState": unitState,
             "enemyState": enemyState
             },
             questions={
-                "order": Choice(
-                    instructions="Which Order should I play this turn? Take `unitState` and `enemyState` into account",
-                    criteria=orderOptions
+                "command": Choice(
+                    instructions="Which Command should I play this turn? Take `unitState` and `enemyState` into account",
+                    criteria=commandOptions
                 ),
             },
         )
-        orderChoice = response.answers["order"]
-        if orderChoice and orderChoice.choice and orderChoice.choice != "Nothing": # pyright: ignore[reportAttributeAccessIssue]
-            orderToReturn = orders[orderChoice.choice] # pyright: ignore[reportAttributeAccessIssue]
+        commandChoice = response.answers["command"]
+        if commandChoice and commandChoice.choice and commandChoice.choice != "Nothing": # pyright: ignore[reportAttributeAccessIssue]
+            commandToReturn = commands[commandChoice.choice] # pyright: ignore[reportAttributeAccessIssue]
 
-    # If we're not giving an Order, then early out
-    if not orderToReturn:
+    # If we're not giving a Command, then early out
+    if not commandToReturn:
         return None, []
 
-    # Otherwise, now we have an order, choose the cards to play it
+    # Otherwise, now we have a command, choose the cards to play it
 
     with TypeSafeClient() as client:
         response = client.system_one(
-            state={"document": "]I need to pick a combination of cards with a `value` at least as high as `orderDifficulty` but ideally only just as high, so I can save better cards for later."
+            state={"document": "I need to pick a combination of cards with a `value` at least as high as `commandDifficulty` but ideally only just as high, so I can save better cards for later."
             "Higher cards are better, and having multiple cards of the same suit is even better (as long as their values sum to more than 10) "
             "Aces are worth 1, number cards are worth their number, and other face cards are worth 10",
-            "orderDifficulty": str(orderToReturn.currentDifficulty(unit)),
+            "commandDifficulty": str(commandToReturn.currentDifficulty(unit)),
             "unitState": unitState
             },
             questions={
                 "cards": Choice(
-                    instructions="Which cards should I use to play the Order? " \
-                    "Try to play the combination of cards with the lowest possible Value which meets or exceeds `orderDifficulty`," \
-                    "except when the order is 'Encourage' - in which case if we have lots of `disorder` then play multiple cards if possible" \
-                    "If `orderDifficulty` is 0, then play no cards (the empty list)",
+                    instructions="Which cards should I use to play the Command? " \
+                    "Try to play the combination of cards with the lowest possible Value which meets or exceeds `commandDifficulty`," \
+                    "except when the command is 'Encourage' - in which case if we have lots of `disorder` then play multiple cards if possible" \
+                    "If `commandDifficulty` is 0, then play no cards (the empty list)",
                     criteria=cardOptions,
                 ),
             },
@@ -212,10 +212,10 @@ def chooseOrder(unit : Unit, enemies : list[Unit], orders : dict[str, Order | No
             cardChoiceToReturn = [Card.fromShortString(card) for card in cardsFromChoice]
 
     # This is a fallback if I've messed up somewhere
-    if not orderToReturn or not cardChoiceToReturn:
-        logger.info("Something went choosing an Order; defaulting to Nothing")
+    if not commandToReturn or not cardChoiceToReturn:
+        logger.info("Something went choosing a Command; defaulting to Nothing")
 
-    return orderToReturn, cardChoiceToReturn # pyright: ignore[reportReturnType] (fromShortString won't fail)
+    return commandToReturn, cardChoiceToReturn # pyright: ignore[reportReturnType] (fromShortString won't fail)
 
 def chooseDieToLose(unit: Unit) -> bool:
     # Choose whether to discard a Firepower die (true) or a Ferocity die (false)

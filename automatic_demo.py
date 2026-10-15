@@ -7,12 +7,12 @@ from source.players import AIPlayer
 from source.units import InfantryUnit
 
 # Only log big events for this demo
-logging.basicConfig(level=logging.ERROR, format="%(message)s")
+logging.basicConfig(level=logging.WARNING, format="%(message)s")
 logger = logging.getLogger(__name__)
 
 if __name__ == "__main__":
     # Play with two evenly matched units until someone runs away...again and again
-    numGames = 100
+    numGames = 3
     maxGameLength = 30
 
     royalistVictories = 0
@@ -38,7 +38,7 @@ if __name__ == "__main__":
         parliamentarians = InfantryUnit(col2.shortName(), Faction.Parliamentarian, 3, 3, (0, 10))
         player2 = AIPlayer("Oliver", Faction.Parliamentarian, col2, parliamentarians)
         logger.error(f"Player Oliver commands {parliamentarians.name()}")
-        
+
         game = Game([player1, player2])
 
         bothSidesFighting = True
@@ -52,6 +52,8 @@ if __name__ == "__main__":
 
             if turnsElapsed % 10 == 0:
                 logger.error(f"{turnsElapsed} turns elapsed")
+            else:
+                logger.warning(f"{turnsElapsed} turns elapsed")
 
         turnsTaken[turnsElapsed] = turnsTaken[turnsElapsed] + 1
 

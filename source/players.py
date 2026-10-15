@@ -1,7 +1,6 @@
 """Represents the actual people playing the game"""
 
 import logging
-from functools import partial
 from typing import Any
 
 from source.cards import Card, combinations, draw, highestCombination, sumCards
@@ -10,10 +9,10 @@ from source.constants import Faction
 from source.jev import (
     chooseActivationCard,
     chooseCardToDiscard,
+    chooseCommand,
     chooseDieToLose,
-    chooseOrder,
 )
-from source.units import Order, Unit, basicOrders
+from source.units import Command, Unit, basicCommands
 
 logger = logging.getLogger(__name__)
 
@@ -53,17 +52,17 @@ class Player:
             logger.info(f"{self.name} chooses to discard a {cardChoice!s}")
             self.hand.remove(cardChoice)
 
-    def orderOptions(self, enemies: list[Unit]) -> dict[str, Order | None]:
-        """ Get all possible Orders, ruling out any that no combination of cards in hand can play"""
+    def orderOptions(self, enemies: list[Unit]) -> dict[str, Command | None]:
+        """ Get all possible Commands, ruling out any that no combination of cards in hand can play"""
         highestCardCombo = highestCombination(self.hand)
-        return {order.name: order for order in basicOrders if order.isPossible(highestCardCombo, self.unit, enemies)}
+        return {order.name: order for order in basicCommands if order.isPossible(highestCardCombo, self.unit, enemies)}
 
     # Abstract methods for making decisions implemented by subclasses
 
     def chooseActivationCard(self) -> Card:
         return self.hand[0] # Hand guaranteed to contain at least two cards at this point
 
-    def chooseOrder(self, enemies: list[Unit]) -> Order | None:
+    def chooseCommand(self, enemies: list[Unit]) -> Command | None:
         return None
     
     def chooseDieToDiscard(self) -> bool:
@@ -100,9 +99,9 @@ class HumanPlayer(Player):
         self.hand.remove(cardChoice)
         return cardChoice
 
-    def chooseOrder(self, enemies: list[Unit]) -> Order | None:
+    def chooseCommand(self, enemies: list[Unit]) -> Command | None:
         # Choose an order, then the combination of cards to play it with
-        options : dict[str, Order | None ] = self.orderOptions(enemies)
+        options : dict[str, Command | None ] = self.orderOptions(enemies)
         
         if not options:
             logger.info("No options available!")
@@ -112,18 +111,18 @@ class HumanPlayer(Player):
         options['Nothing'] = None
         #TODO: pretty ew as well
         optionStrings = {key: option.description if option else "Let the unit continue as is" for key, option in options.items()}
-        chosenOrder = options[self._selectFromOptions(optionStrings, 'Nothing')]
+        chosenCommand = options[self._selectFromOptions(optionStrings, 'Nothing')]
 
-        if not chosenOrder:
+        if not chosenCommand:
             print("Doing nothing; no cards need be played")
             return None
 
         cardCombos = combinations(self.hand)
-        requiredDifficulty = chosenOrder.currentDifficulty(self.unit)
+        requiredDifficulty = chosenCommand.currentDifficulty(self.unit)
 
         usefulCombos = [combo for combo in cardCombos if combo[0] >= requiredDifficulty]
         comboOptions = {str(i): f"{' '.join(str(card) for card in combo[1])} ({combo[0]} total)" for i, combo in enumerate(usefulCombos)}
-        print(f"Choose some cards to play your Order with (required difficulty {requiredDifficulty})")
+        print(f"Choose some cards to play your Command with (required difficulty {requiredDifficulty})")
         comboChoice = self._selectFromOptions(comboOptions, str(len(comboOptions) - 1))
 
         #TODO: ew
@@ -131,19 +130,19 @@ class HumanPlayer(Player):
         for card in chosenCards:
             self.hand.remove(card)
 
-        # Fill out details of the Order now we know the cards used
+        # Fill out details of the Command now we know the cards used
         # TODO: work on target choice; for now always pick the sole enemy
-        if chosenOrder.name in ['Fire', 'Charge']:
-            chosenOrder.target = enemies[0]
-        elif chosenOrder.name in ['Walk', 'Run', 'Trot', 'Gallop']:
-            chosenOrder.direction = self.unit.directionOf(enemies[0])
-        elif chosenOrder.name in ['Flee']:
+        if chosenCommand.name in ['Fire', 'Charge']:
+            chosenCommand.target = enemies[0]
+        elif chosenCommand.name in ['Walk', 'Run', 'Trot', 'Gallop']:
+            chosenCommand.direction = self.unit.directionOf(enemies[0])
+        elif chosenCommand.name in ['Flee']:
             directionTo = self.unit.directionOf(enemies[0])
-            chosenOrder.direction = (directionTo[0] * -1, directionTo[1] * -1)
-        elif chosenOrder.name in ['Encourage']:
-            chosenOrder.cardsUsed = chosenCards
+            chosenCommand.direction = (directionTo[0] * -1, directionTo[1] * -1)
+        elif chosenCommand.name in ['Encourage']:
+            chosenCommand.cardsUsed = chosenCards
 
-        return chosenOrder
+        return chosenCommand
 
     def chooseDieToDiscard(self) -> bool:
         print(f"\n{self.name}, pick a die to discard. ")
@@ -166,44 +165,44 @@ class AIPlayer(Player):
         self.hand.remove(cardChoice)
         return cardChoice
 
-    def chooseOrder(self, enemies: list[Unit]) -> Order | None:
+    def chooseCommand(self, enemies: list[Unit]) -> Command | None:
             """ Pick an order to give """
             options = self.orderOptions(enemies)
     
             if not options:
-                logger.info("No Order options available!")
+                logger.info("No Command options available!")
                 return None
     
             cardCombos = combinations(self.hand)
     
-            chosenOrder, chosenCards = chooseOrder(self.unit, enemies, options, cardCombos)
+            chosenCommand, chosenCards = chooseCommand(self.unit, enemies, options, cardCombos)
     
-            logger.warning(f"Playing order {chosenOrder.name if chosenOrder else 'None'} with {' '.join(str(card) for card in chosenCards) if chosenCards else 'no cards'}")
+            logger.warning(f"Playing order {chosenCommand.name if chosenCommand else 'None'} with {' '.join(str(card) for card in chosenCards) if chosenCards else 'no cards'}")
     
-            if not chosenOrder:
+            if not chosenCommand:
                 return None
     
-            diff = chosenOrder.currentDifficulty(self.unit)
+            diff = chosenCommand.currentDifficulty(self.unit)
             chosenSum = sumCards(chosenCards)
             if chosenSum < diff:
                 # Blunder! TODO: write the Blunder table
-                logger.warning(f"{self.name} has Blundered, trying play {chosenOrder.name} (Difficulty {diff}) with cards totalling {chosenSum}!")
+                logger.warning(f"{self.name} has Blundered, trying play {chosenCommand.name} (Difficulty {diff}) with cards totalling {chosenSum}!")
                 return None
             
             for card in chosenCards:
                 self.hand.remove(card)
     
             # TODO: work on target choice; for now always pick the sole enemy
-            if chosenOrder.name in ['Fire', 'Charge']:
-                chosenOrder.target = enemies[0]
-            elif chosenOrder.name in ['Walk', 'Run', 'Trot', 'Gallop']:
-                chosenOrder.direction = self.unit.directionOf(enemies[0])
-            elif chosenOrder.name in ['Flee']:
+            if chosenCommand.name in ['Fire', 'Charge']:
+                chosenCommand.target = enemies[0]
+            elif chosenCommand.name in ['Walk', 'Run', 'Trot', 'Gallop']:
+                chosenCommand.direction = self.unit.directionOf(enemies[0])
+            elif chosenCommand.name in ['Flee']:
                 directionTo = self.unit.directionOf(enemies[0])
-                chosenOrder.direction = (directionTo[0] * -1, directionTo[1] * -1)
-            elif chosenOrder.name in ['Encourage']:
-                chosenOrder.cardsUsed = chosenCards
-            return chosenOrder
+                chosenCommand.direction = (directionTo[0] * -1, directionTo[1] * -1)
+            elif chosenCommand.name in ['Encourage']:
+                chosenCommand.cardsUsed = chosenCards
+            return chosenCommand
 
     def chooseDieToDiscard(self) -> bool:
         # True for Firepower; false for ferocity

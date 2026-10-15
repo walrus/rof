@@ -52,8 +52,8 @@ class MovementSpeed(Enum):
     Trot   = 4 # Only for cavalry
     Gallop = 5 # Only for cavalry
 
-def moveSpeedFromOrder(string : str, unitType: UnitType) -> MovementSpeed:
-    """ Convert a given Order into a movement speed """
+def moveSpeedFromCommand(string : str, unitType: UnitType) -> MovementSpeed:
+    """ Convert a given Command into a movement speed """
     if string == "Reform":
         return MovementSpeed.Slow
     elif string == "Flee":
@@ -93,7 +93,7 @@ class Unit:
     fighting: bool # Is this unit currently fighting
     position: tuple[int, int] # xy; height is ignored for now
     # Note also that all units must implement movementSpeed
-    currentOrder: Order | None  # noqa: F821
+    currentCommand: Command | None  # noqa: F821
     currentMovementSpeed: MovementSpeed
     shootingDistanceMultiplier: int # TODO: make a proper constant
 
@@ -110,7 +110,7 @@ class Unit:
         self.disorder = 0
         self.shooting = False
         self.fighting = False
-        self.currentOrder = None
+        self.currentCommand = None
         self.steadiness = Card.fromRankAndSuit(Rank.Nine, Suit.Clubs)
         self.currentMovementSpeed = MovementSpeed.Halt
         self.casualties = 0
@@ -176,44 +176,44 @@ class Unit:
 
         return f"{self.name()} is {action}. Current Disorder {self.disorder}"
 
-    # Deal with Orders
+    # Deal with Commands
 
-    def carryOut(self, order: Order) -> None:  # noqa: F821 (I'll deal with it!)
-        """ Attempt to carry out the given order"""
-        #TODO check for Fighting and Fleeing as those interact with Orders a little differently
-        if not order:
+    def carryOut(self, command: Command) -> None:  # noqa: F821 (I'll deal with it!)
+        """ Attempt to carry out the given command"""
+        #TODO check for Fighting and Fleeing as those interact with Commands a little differently
+        if not command:
             # Carry on as you were 
             # TODO: Things like Halt should clear for neatness, but will have essentially the same effect 
             # if they get enacted every turn so low priority
-            if self.currentOrder:
-                logger.warning(f"{self.name()} continues to {self.currentOrder.name}")
-                self.carryOut(self.currentOrder)
+            if self.currentCommand:
+                logger.warning(f"{self.name()} continues to {self.currentCommand.name}")
+                self.carryOut(self.currentCommand)
             return
 
         # E.G don't stop firing just because of encouragement
-        if order.name not in ['Encourage']:
-            self.currentOrder = order
+        if command.name not in ['Encourage']:
+            self.currentCommand = command
 
-        match order.name:
+        match command.name:
             case 'Halt':
                 self.halt()
             case 'Walk' | 'Run' | 'Reform' | 'Trot' | 'Gallop':
-                moveSpeed = moveSpeedFromOrder(order.name, self.unitType)
-                self.move(order.direction, moveSpeed) # pyright: ignore[reportArgumentType]
+                moveSpeed = moveSpeedFromCommand(command.name, self.unitType)
+                self.move(command.direction, moveSpeed) # pyright: ignore[reportArgumentType]
             case 'Flee':
-                self.flee(order.direction) # pyright: ignore[reportArgumentType]
+                self.flee(command.direction) # pyright: ignore[reportArgumentType]
             case 'Fire':
-                self.shootAt(order.target) # pyright: ignore[reportArgumentType] (guaranteed to not be None for this Order type)
+                self.shootAt(command.target) # pyright: ignore[reportArgumentType] (guaranteed to not be None for this Command type)
             case 'Cease Fire':
                 self.ceaseFire()
             case 'Rally':
                 self.rally()
             case 'Encourage':
-                self.encourage(order.cardsUsed)
+                self.encourage(command.cardsUsed)
             case 'Charge':
-                self.charge(order.target) # pyright: ignore[reportArgumentType]
+                self.charge(command.target) # pyright: ignore[reportArgumentType]
             case _:
-                logger.error(f"Unknown Order given: {order.name}")
+                logger.error(f"Unknown Command given: {command.name}")
         return
 
     def halt(self) -> None:
@@ -314,7 +314,7 @@ class Unit:
 
         # Take panic tests - a failed test here results in a Panic not just Wavering
         # If both sides are still around, then they're both fighting (TODO: except Cavalry!)
-        #TODO implement pursuit as an Order type?
+        #TODO implement pursuit as an Command type?
         if not loser.panicTest():
             # Loser runs away
             loser.flee(winner.directionOf(loser))
@@ -470,12 +470,12 @@ class CavalryUnit(Unit):
         return self.firepower > 0
 
     
-class Order:
-    """ Represents an order a Player might give to a Unit 
-        Tightly coupled because most Orders have a prerequisite which depends on a Unit"""
+class Command:
+    """ Represents a command a Player might give to a Unit 
+        Tightly coupled because most Commands have a prerequisite which depends on a Unit"""
     name: str
     description: str
-    baseDifficulty: int    # All orders have a base difficulty; 
+    baseDifficulty: int    # All commands have a base difficulty; 
     addsDisorder: bool     # Some are modified by the Unit's Disorder
     prerequisite: Callable | None # Some have special prerequisites; specified by a function which takes a Unit
     target: Unit | None
@@ -496,11 +496,11 @@ class Order:
         return self.baseDifficulty + unit.disorder if self.addsDisorder else self.baseDifficulty
 
     def isPossible(self, highestCardCombo: int, unit: Unit, enemies: list[Unit]) -> bool:
-        # Global prerequisites: can't issue orders to a Dispersed unit
+        # Global prerequisites: can't issue commands to a Dispersed unit
         if unit.dispersed():
             return False
 
-        # can't issue orders while fighting or panicked, except to Rally, Encourage or Flee
+        # can't issue commands while fighting or panicked, except to Rally, Encourage or Flee
         if (unit.fighting or unit.panicked()) and self.name not in ['Rally', 'Encourage', 'Flee']:
             return False
 
@@ -520,19 +520,19 @@ class Order:
     def setDirection(self, direction: tuple[int,int]) -> None:
         self.direction = direction
 
-# Common orders that most units can carry out
+# Common commands that most units can carry out
 # description, base difficulty, adds disorder, prerequisite
-basicOrders = [
-    Order("Halt", "Stop what you're doing", 5, True, lambda u: u.currentMovementSpeed.value > 0 and u.currentMovementSpeed != MovementSpeed.Gallop),
-    Order("Walk", "Move slowly forwards", 5, True, None),
-    Order("Run", "Move quickly forwards", 5, True, lambda u: u.unitType == UnitType.Infantry),
-    Order("Reform", "Move slowly into a new formation", 5, True, None),
-    Order("Flee", "Run away!", 5, False, None),
-    Order("Rally", "Stop running away!", 1, False, lambda u: not u.isOK()),
-    Order("Encourage", "Make the troops feel better", 1, False, lambda u: u.disorder > 0),
-    Order("Charge", "Move quickly towards the enemy", 5, True, lambda u: u.isOK()),
-    Order("Trot", "Cavalry move fairly quickly forwards", 5, True, lambda u:u.unitType == UnitType.Cavalry),
-    Order("Gallop", "Cavalry move quickly forwards", 5, True, lambda u: u.unitType == UnitType.Cavalry and u.currentMovementSpeed == MovementSpeed.Trot and not u.blown),
-    Order("Fire", "Start shooting", 5, False, lambda u: u.firepower > 0 and not u.shooting),
-    Order("Cease Fire", "Stop shooting", 5, True, lambda u: u.shooting),
+basicCommands = [
+    Command("Halt", "Stop what you're doing", 5, True, lambda u: u.currentMovementSpeed.value > 0 and u.currentMovementSpeed != MovementSpeed.Gallop),
+    Command("Walk", "Move slowly forwards", 5, True, None),
+    Command("Run", "Move quickly forwards", 5, True, lambda u: u.unitType == UnitType.Infantry),
+    Command("Reform", "Move slowly into a new formation", 5, True, None),
+    Command("Flee", "Run away!", 5, False, None),
+    Command("Rally", "Stop running away!", 1, False, lambda u: not u.isOK()),
+    Command("Encourage", "Make the troops feel better", 1, False, lambda u: u.disorder > 0),
+    Command("Charge", "Move quickly towards the enemy", 5, True, lambda u: u.isOK()),
+    Command("Trot", "Cavalry move fairly quickly forwards", 5, True, lambda u:u.unitType == UnitType.Cavalry),
+    Command("Gallop", "Cavalry move quickly forwards", 5, True, lambda u: u.unitType == UnitType.Cavalry and u.currentMovementSpeed == MovementSpeed.Trot and not u.blown),
+    Command("Fire", "Start shooting", 5, False, lambda u: u.firepower > 0 and not u.shooting),
+    Command("Cease Fire", "Stop shooting", 5, True, lambda u: u.shooting),
 ]

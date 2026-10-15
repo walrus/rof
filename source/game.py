@@ -48,8 +48,8 @@ class Game:
         for card, player in activationCards:
             logger.warning(f"Activation: {player.name} with a {card!s}")
             enemyUnits = [unit for unit in self.units if unit.isEnemy(player.faction)]
-            order = player.chooseOrder(enemyUnits)
-            player.unit.carryOut(order)
+            command = player.chooseCommand(enemyUnits)
+            player.unit.carryOut(command)
             logger.info(f"{player.unit.name()} now at {player.unit.position[0]},{player.unit.position[1]}")
             logger.info(f"{player.unit.name()} now has {player.unit.disorder} disorder; status {player.unit.morale}")
         
