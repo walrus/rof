@@ -146,7 +146,7 @@ def drawSingle() -> Card:
     return Card(randint(0, 51))
 
 """ Draw N random cards from a standard 52-card deck, keeping some"""
-def draw(num: int, keep: int, highest=True) -> list[Card]:
+def draw(num: int, keep: int, highest: bool =True) -> list[Card]:
     indices = sample(range(52), num)
     cards = [Card(index) for index in indices]
 
@@ -159,6 +159,9 @@ def draw(num: int, keep: int, highest=True) -> list[Card]:
 """ Sum the values of the given cards"""
 def sumCards(cards: list[Card]) -> int:
     return sum(card.value() for card in cards)
+
+def highestValue(cards: list[Card]) -> int:
+    return max(card.value() for card in cards)
 
 """ Number of cards in the set which are at or above the given threshold 
     E.G how many Jacks or higher?
